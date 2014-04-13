@@ -38,6 +38,7 @@ public class StreamParser extends BinaryParser {
 	Writer out;
 	Storage storage;
 	WayClassifier classifier;
+	ObjectMapper objectMapper = new ObjectMapper();
 
 	public StreamParser(Writer out, Storage storage, WayClassifier classifier) {
 		super();
@@ -65,27 +66,43 @@ public class StreamParser extends BinaryParser {
 		log.info("There are " + denseNodes.getIdCount()
 				+ " nodes in this dense node");
 		log.info("Keyvals original size: " + denseNodes.getKeysValsCount());
-		List<Map<String, Object>> denseProps = getPropsFromDenseKeyVals(denseNodes
-				.getKeysValsList());
-		log.info("Keyvals:" + denseProps.size());
+		//List<Map<String, Object>> denseProps = getPropsFromDenseKeyVals(denseNodes
+		//		.getKeysValsList());
+		//log.info("Keyvals:" + denseProps.size());
 
 		final IncrementalLong lastId = new IncrementalLong(), lastLat = new IncrementalLong(), lastLon = new IncrementalLong();
-
+		final IncrementalLong propsPos = new IncrementalLong();
 		IntStream
 				.range(0, denseNodes.getLonCount())
 				.mapToObj(
-						i -> new SimpleNode(this.parseLon(lastLon
-								.incr(denseNodes.getLon(i))), this
-								.parseLat(lastLat.incr(denseNodes.getLat(i))),
-								lastId.incr(denseNodes.getId(i)), denseProps
-										.get(i))).parallel()
-				.map(storage::setNode).filter(this::isInteresting)
+						i -> new SimpleNode(this.parseLon(lastLon.incr(denseNodes.getLon(i))), 
+								this.parseLat(lastLat.incr(denseNodes.getLat(i))),
+								lastId.incr(denseNodes.getId(i)), 
+								getPropsForPosition(propsPos, denseNodes.getKeysValsList())
+								//denseProps.get(i)
+								))
+				.parallel()
+				.map(storage::setNode)
+				.filter(this::isInteresting)
 				.map(this::convertNode).sequential()
 				.forEach(this::writeNoException);
 		// .mapToObj(i -> new LngLatAlt());
 		// Stream.iterate(seed, f)
 	}
 
+	protected Map<String, Object> getPropsForPosition(IncrementalLong position, List<Integer> keyvals)
+	{
+		Map<String, Object> curMap = new HashMap<String, Object>();
+		int i=(int)position.getCount();
+		while (i < keyvals.size() && keyvals.get(i) != 0) {
+			String k = this.getStringById(keyvals.get(i++));
+			String v = this.getStringById(keyvals.get(i++));
+			curMap.put(k, v);
+		}
+		i++;
+		position.incr(i-position.getCount());
+		return curMap;
+	}
 	protected List<Map<String, Object>> getPropsFromDenseKeyVals(
 			List<Integer> keyvals) {
 		List<Map<String, Object>> out = new ArrayList<Map<String, Object>>();
@@ -123,11 +140,19 @@ public class StreamParser extends BinaryParser {
 		Point f = new Point(node.getLon(), node.getLat());
 		f.setProperties(node.getProperties());
 		try {
-			String json = new ObjectMapper().writeValueAsString(f);
+			//String json = new ObjectMapper().writeValueAsString(f);
+			String json = objectMapper.writeValueAsString(f);
 			return json;
 		} catch (JsonProcessingException e) {
 			throw new ConvertorException(e);
 		}
+	}
+	
+	protected Map<String, Object> cleanupProps(Map<String,Object> props)
+	{
+		props.remove("source");
+		props.remove("created_by");
+		return props;
 	}
 
 	@Override
@@ -135,7 +160,7 @@ public class StreamParser extends BinaryParser {
 		log.info("There are " + nodes.size() + " nodes in this block");
 		nodes.parallelStream().map(this::fromNode).map(storage::setNode)
 				// .filter(this::isInteresting)
-				.map(this::convertNode).sequential()
+				.map(this::convertNode)//.sequential()
 				.forEach(this::writeNoException);
 	}
 
@@ -168,7 +193,8 @@ public class StreamParser extends BinaryParser {
 		f.setProperties(props);
 
 		try {
-			String json = new ObjectMapper().writeValueAsString(f);
+			String json = objectMapper.writeValueAsString(f);
+			//String json = new ObjectMapper().writeValueAsString(f);
 			return json;
 		} catch (JsonProcessingException e) {
 			throw new ConvertorException(e);
@@ -179,16 +205,19 @@ public class StreamParser extends BinaryParser {
 	protected void parseWays(List<Way> ways) {
 		log.info("There are " + ways.size() + " ways in this block");
 		ways.parallelStream().map(storage::setWay).filter(this::isInteresting)
-				.map(this::convertWay).sequential()
+				.map(this::convertWay)//.sequential()
 				.forEach(this::writeNoException);
 
 	}
 
+	
+	
 	protected boolean isInteresting(Way way) {
 		return way.getKeysCount() > 0;
 	}
 
 	protected boolean isInteresting(SimpleNode node) {
+		cleanupProps(node.getProperties());
 		return node.getProperties().size() > 1
 				|| (node.getProperties().size() == 1 && !node.getProperties()
 						.containsKey("source"));
@@ -203,10 +232,15 @@ public class StreamParser extends BinaryParser {
 	}
 
 	static protected class IncrementalLong {
-		long l = 0;
+		private long l = 0;
 
 		public long incr(long i) {
 			l += i;
+			return l;
+		}
+		
+		public long getCount()
+		{
 			return l;
 		}
 
