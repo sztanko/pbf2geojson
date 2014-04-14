@@ -1,9 +1,15 @@
 package org.openstreetmap.pbf2geojson.convertors;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Stream;
+
+import org.openstreetmap.pbf2geojson.data.SimpleNode;
+import org.openstreetmap.pbf2geojson.data.SimpleWay;
+import org.openstreetmap.pbf2geojson.storage.Storage;
 
 public class ConvertorUtils {
 	public static  Map<String, Object> getProperties(List<Integer> keys,
@@ -16,4 +22,10 @@ public class ConvertorUtils {
 		return props;
 	}
 	
+	
+	public static  Stream<SimpleNode> retrieveNodes(SimpleWay way, Storage storage)
+	{
+		return Arrays.stream(way.getRefList()).mapToObj(storage::getNode);
+				//.toArray(SimpleNode[]::new);
+	}
 }

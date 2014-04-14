@@ -1,7 +1,8 @@
 package org.openstreetmap.pbf2geojson.storage;
 
 import org.geojson.Point;
-import org.openstreetmap.pbf2geojson.SimpleNode;
+import org.openstreetmap.pbf2geojson.data.SimpleNode;
+import org.openstreetmap.pbf2geojson.data.SimpleWay;
 
 import crosby.binary.Osmformat.Node;
 import crosby.binary.Osmformat.Relation;
@@ -12,10 +13,8 @@ public interface Storage {
 	SimpleNode getNode(Long ref);
 	
 	
-	Way setWay(Way way);
-	Way getWay(Long ref);
+	SimpleWay setWay(SimpleWay way);
+	SimpleWay getWay(Long ref);
 	
-	Relation setRelation(Relation relation);
-	Relation getRelation(Long ref);
-	
+	void close();
 }

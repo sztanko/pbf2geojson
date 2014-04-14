@@ -1,6 +1,6 @@
 This is a yet another convertor of OpenStreetMap pbf files. This time it converts to geojson.
 
-It uses multiple cores and should be fast in theory. (In practice, it isn't/I didn't test is yet)
+It uses multiple cores and should be fast in theory. (I haven't done any benchmarks yet)
 
 On the other side, it keeps it's intermediate results in RAM which means it might fill up all your memory.
 

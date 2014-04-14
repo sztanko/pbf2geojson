@@ -10,6 +10,8 @@ import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
+import org.openstreetmap.pbf2geojson.convertors.Convertor;
+import org.openstreetmap.pbf2geojson.convertors.GeoJSONConvertor;
 import org.openstreetmap.pbf2geojson.storage.Storage;
 import org.openstreetmap.pbf2geojson.storage.impl.MemoryStorage;
 
@@ -23,10 +25,15 @@ public class Convert {
 //		InputStream input = ReadFileExample.class.getResourceAsStream("/sample.pbf");
 		InputStream input = System.in;
 		
-		Writer out = new BufferedWriter(new PrintWriter(System.out));
+		Writer out = new BufferedWriter(new PrintWriter(System.out), 10*1024*1024);
 		Storage storage = new MemoryStorage();
-		BlockReaderAdapter brad = new StreamParser(out, storage, new SimpleWayClassifier());
-        new BlockInputStream(input, brad).process();
+		WayClassifier classifier = new SimpleWayClassifier();
+		Convertor convertor = new GeoJSONConvertor(new SimpleWayClassifier(), storage);
+		BlockReaderAdapter brad = new StreamParser(out, storage, convertor, classifier);
+		
+		//BlockReaderAdapter brad = new ParallelStreamParser(out, storage, convertor, classifier);
+		new BlockInputStream(input, brad).process();
+        storage.close();
 	}
 
 	public CommandLineParser getParser() {

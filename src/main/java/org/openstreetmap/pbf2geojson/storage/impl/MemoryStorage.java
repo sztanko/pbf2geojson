@@ -7,7 +7,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.java.Log;
 
 import org.geojson.Point;
-import org.openstreetmap.pbf2geojson.SimpleNode;
+import org.openstreetmap.pbf2geojson.data.SimpleNode;
+import org.openstreetmap.pbf2geojson.data.SimpleWay;
 import org.openstreetmap.pbf2geojson.storage.Storage;
 
 import crosby.binary.Osmformat.Node;
@@ -17,38 +18,27 @@ import crosby.binary.Osmformat.Way;
 public class MemoryStorage implements Storage {
 
 	private Map<Long, SimpleNode> nodeMap;
-	private Map<Long, Way> wayMap;
+	private Map<Long, SimpleWay> wayMap;
 	
 	public MemoryStorage() {
 		super();
 		this.nodeMap = new ConcurrentHashMap<Long, SimpleNode>();
-		this.wayMap = new ConcurrentHashMap<Long, Way>();
+		this.wayMap = new ConcurrentHashMap<Long, SimpleWay>();
 	}
 
 	
 	@Override
-	public Way setWay(Way way) {
-		 this.wayMap.put(way.getId(), way);
+	public SimpleWay setWay(SimpleWay way) {
+		
+		SimpleWay w = new SimpleWay(way.getRefList(), way.getRef(), null);
+		 this.wayMap.put(way.getRef(), w);
 		 return way;
 		
 	}
 
 	@Override
-	public Way getWay(Long ref) {
+	public SimpleWay getWay(Long ref) {
 		return this.wayMap.get(ref);
-	}
-
-	@Override
-	public Relation setRelation(Relation relation) {
-		return relation;
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public Relation getRelation(Long ref) {
-		// TODO Auto-generated method stub
-		return null;
 	}
 
 
@@ -56,9 +46,9 @@ public class MemoryStorage implements Storage {
 	public SimpleNode setNode(SimpleNode node) {
 		if(node.getRef()<0){
 			log.warning("Trying to store negative ref:" + node.toString());
-			//throw new RuntimeException(node.toString());
 		}
-			this.nodeMap.put(node.getRef(), node);
+		SimpleNode n = new SimpleNode(node.getLon(), node.getLat(), node.getRef(),null);	
+		this.nodeMap.put(node.getRef(), n);
 		return node;
 	}
 
@@ -71,6 +61,12 @@ public class MemoryStorage implements Storage {
 			log.warning("Node ref "+ref+" is null");
 		}
 		return sn;
+	}
+
+
+	@Override
+	public void close() {
+			
 	}
 
 	

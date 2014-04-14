@@ -1,27 +1,48 @@
 package org.openstreetmap.pbf2geojson;
 
-import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 
-import org.geojson.LngLatAlt;
+import org.openstreetmap.pbf2geojson.data.SimpleNode;
+import org.openstreetmap.pbf2geojson.data.SimpleWay;
 
-import crosby.binary.Osmformat.Way;
+import crosby.binary.Osmformat.Relation;
+
 
 public class SimpleWayClassifier implements WayClassifier {
 
 	@Override
-	public boolean isLineString(LngLatAlt[] coordinates,
+	public boolean isLineString(SimpleNode[] coordinates,
 			Map<String, Object> props) {
-		LngLatAlt fc = coordinates[0];
-		LngLatAlt lc = coordinates[coordinates.length-1];
-		if (!(lc.getLatitude()==fc.getLatitude() && lc.getLongitude()==fc.getLongitude()))
+		SimpleNode fc = coordinates[0];
+		SimpleNode lc = coordinates[coordinates.length-1];
+		if (!(lc.getLat()==fc.getLat() && lc.getLon()==fc.getLon()))
 			return true;
 		if(props.containsKey("highway"))
 		{
 			return true;
 		}
 		return false;
+	}
+	@Override
+	public boolean isInteresting(SimpleWay way) {
+		return way.getProperties().size() > 0;
+	}
+	@Override
+	public boolean isInteresting(SimpleNode node) {
+		cleanupProps(node.getProperties());
+		return node.getProperties().size() > 0;
+				
+	}
+	@Override
+	public boolean isInteresting(Relation rel) {
+		return rel.getKeysCount() > 0;
+	}
+	
+	protected Map<String, Object> cleanupProps(Map<String,Object> props)
+	{
+		props.remove("source");
+		props.remove("created_by");
+		return props;
 	}
 
 }
