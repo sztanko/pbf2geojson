@@ -1,35 +1,45 @@
 package org.openstreetmap.pbf2geojson.storage.impl;
 
 
-import java.util.HashMap;
+import org.mapdb.*;
+
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import lombok.extern.java.Log;
 
-import org.geojson.Point;
 import org.openstreetmap.pbf2geojson.data.SimpleNode;
 import org.openstreetmap.pbf2geojson.data.SimpleWay;
 import org.openstreetmap.pbf2geojson.storage.Storage;
 
-import crosby.binary.Osmformat.Node;
-import crosby.binary.Osmformat.Relation;
-import crosby.binary.Osmformat.Way;
 @Log
-public class MemoryStorage implements Storage {
+public class MapDBStorage implements Storage {
 
-	private Map<Long, SimpleNode> nodeMap;
-	private Map<Long, SimpleWay> wayMap;
+	private HTreeMap<Long, SimpleNode> nodeMap;
+	private HTreeMap<Long, SimpleWay> wayMap;
 	
-	public MemoryStorage() {
+	public MapDBStorage() {
 		super();
-		this.nodeMap = new ConcurrentHashMap<Long, SimpleNode>();
-		this.wayMap = new ConcurrentHashMap<Long, SimpleWay>();
+		//DB db = DBMaker.newTempHashMap();
+		this.nodeMap = createTempHashMap();
+		this.wayMap = createTempHashMap();
 		//this.nodeMap = new HashMap<Long, SimpleNode>();
 		//this.wayMap = new HashMap<Long, SimpleWay>();
 	
 	}
 
+	@SuppressWarnings("rawtypes")
+	private HTreeMap createTempHashMap()
+	{
+		return DBMaker.newTempHashMap();
+		/*return
+				DBMaker.newMemoryDirectDB()
+                .deleteFilesAfterClose()
+                .closeOnJvmShutdown()
+                .transactionDisable()
+                .make()
+                .getHashMap("temp"); */
+	}
 	
 	@Override
 	public SimpleWay setWay(SimpleWay way) {

@@ -8,6 +8,7 @@ import java.util.Map;
 
 import lombok.extern.java.Log;
 
+import org.openstreetmap.pbf.BinaryParser;
 import org.openstreetmap.pbf2geojson.convertors.Convertor;
 import org.openstreetmap.pbf2geojson.convertors.ConvertorUtils;
 import org.openstreetmap.pbf2geojson.convertors.IncrementalLong;
@@ -15,7 +16,6 @@ import org.openstreetmap.pbf2geojson.data.SimpleNode;
 import org.openstreetmap.pbf2geojson.data.SimpleWay;
 import org.openstreetmap.pbf2geojson.storage.Storage;
 
-import crosby.binary.BinaryParser;
 import crosby.binary.Osmformat.DenseNodes;
 import crosby.binary.Osmformat.HeaderBlock;
 import crosby.binary.Osmformat.Node;
@@ -98,8 +98,7 @@ public class StreamParser extends BinaryParser {
 
 	protected void writeNoException(String str) {
 		try {
-			out.write(str);
-			out.write('\n');
+			out.write(str+"\n");
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -148,7 +147,12 @@ public class StreamParser extends BinaryParser {
 
 
 	public void complete() {
-
+		try {
+			this.out.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 
