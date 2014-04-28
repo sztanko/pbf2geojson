@@ -128,8 +128,8 @@ public class ParallelStreamParser extends BinaryParser {
 		IntStream
 				.range(0, denseNodes.getLonCount())
 				.mapToObj(
-						i -> new SimpleNode(this.parseLon(lastLon
-								.incr(denseNodes.getLon(i))), this
+						i -> new SimpleNode((float)this.parseLon(lastLon
+								.incr(denseNodes.getLon(i))), (float)this
 								.parseLat(lastLat.incr(denseNodes.getLat(i))),
 								lastId.incr(denseNodes.getId(i)),
 								getPropsForPosition(propsPos,
@@ -195,13 +195,13 @@ public class ParallelStreamParser extends BinaryParser {
 	protected SimpleNode fromDenseNode(DenseNodes denseNodes, int i,
 			Map<String, Object> props) {
 
-		return new SimpleNode(this.parseLon(denseNodes.getLon(i)),
-				this.parseLat(denseNodes.getLat(i)), denseNodes.getId(i), props);
+		return new SimpleNode((float)this.parseLon(denseNodes.getLon(i)),
+				(float)this.parseLat(denseNodes.getLat(i)), denseNodes.getId(i), props);
 	}
 
 	protected SimpleNode fromNode(Node node) {
-		SimpleNode sn = new SimpleNode(this.parseLon(node.getLon()),
-				this.parseLat(node.getLat()), node.getId(),
+		SimpleNode sn = new SimpleNode((float)this.parseLon(node.getLon()),
+				(float)this.parseLat(node.getLat()), node.getId(),
 				ConvertorUtils.getProperties(node.getKeysList(),
 						node.getValsList(), this::getStringById));
 		return sn;
@@ -235,7 +235,7 @@ public class ParallelStreamParser extends BinaryParser {
 						nodeCounter.incrementAndGet();
 
 						Stream.of(el).map(storage::setNode)
-								.filter(classifier::isInteresting)
+								.filter(n -> classifier.isInteresting(n.getProperties()))
 								.map(convertor::convertNode)
 								.forEach(out::println);
 					}

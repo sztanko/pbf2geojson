@@ -15,7 +15,7 @@ boolean isLineString(SimpleNode[] coordinates, Map<String, Object> props);
 
 boolean isInteresting(SimpleWay way);
 
-boolean isInteresting(SimpleNode node);
+boolean isInteresting(Map<String, Object> props);
 
 boolean isInteresting(Relation rel);
 }

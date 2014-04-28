@@ -10,11 +10,11 @@ import crosby.binary.Osmformat.Way;
 
 public interface Storage {
 	SimpleNode setNode(SimpleNode node);
-	SimpleNode getNode(Long ref);
-	
+	SimpleNode getNode(long ref);
+	void setNode(long ref, float lon, float lat);
 	
 	SimpleWay setWay(SimpleWay way);
-	SimpleWay getWay(Long ref);
+	SimpleWay getWay(long ref);
 	
 	void close();
 }

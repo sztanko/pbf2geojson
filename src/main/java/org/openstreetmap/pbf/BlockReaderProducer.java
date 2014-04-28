@@ -19,9 +19,12 @@ public class BlockReaderProducer{
     private InputStream input;
     private BlockingQueue<RawBlockPair> q;
     
+    private RawBlockPair poison;
+    
 	public BlockReaderProducer(InputStream input, BlockingQueue<RawBlockPair> q) {
         this.input = input;
         this.q = q;
+        this.poison = new RawBlockPair();
        }
 
     public int load() throws IOException, InterruptedException {
@@ -31,12 +34,14 @@ public class BlockReaderProducer{
         while (true) {
           RawBlockPair p = FileBlock.processRaw(datinput);
           q.put(p);
-          //log.info(msg);
+          log.info("Length of q is "+q.size());
           c++;
         }
       } catch (EOFException e) {
         
       }
+    	for(int i=0;i<Runtime.getRuntime().availableProcessors()*2;i++)
+    		q.put(this.poison);
     	return c;
     }
 

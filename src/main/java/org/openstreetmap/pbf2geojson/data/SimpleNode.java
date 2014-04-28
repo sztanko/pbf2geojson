@@ -10,8 +10,8 @@ import lombok.Data;
 @Data
 public class SimpleNode implements Serializable {
 	private static final long serialVersionUID = 9101186615860056358L;
-	private double lon;
-	private double lat;
+	private float lon;
+	private float lat;
 	private long ref;
 	private Map<String, Object> properties;
 }

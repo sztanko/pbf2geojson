@@ -18,17 +18,25 @@
 package org.openstreetmap.pbf;
 
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.Date;
 import java.util.List;
+
+import lombok.extern.java.Log;
 
 import org.openstreetmap.pbf.file.BlockHandler;
 import org.openstreetmap.pbf.file.FileBlock;
 
+import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import crosby.binary.Osmformat;
+import crosby.binary.Osmformat.PrimitiveGroup;
 
-
+@Log
 public abstract class BinaryParser implements BlockHandler {
     protected int granularity;
     private long lat_offset;
@@ -61,10 +69,21 @@ public abstract class BinaryParser implements BlockHandler {
             if (message.getType().equals("OSMHeader")) {
                 Osmformat.HeaderBlock headerblock = Osmformat.HeaderBlock
                         .parseFrom(message.getData());
+                log.info("Header");
                 parse(headerblock);
             } else if (message.getType().equals("OSMData")) {
+            	long t0=System.nanoTime()/1000;
+            	ByteString data = message.getData();
+            	/*try {
+					Files.write(Paths.get("block-"+data.toStringUtf8().hashCode()), data.toByteArray(), StandardOpenOption.CREATE);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}*/
                 Osmformat.PrimitiveBlock primblock = Osmformat.PrimitiveBlock
-                        .parseFrom(message.getData());
+                        .parseFrom(data);
+                long t1 = System.nanoTime()/1000-t0;
+                PrimitiveGroup gr= primblock.getPrimitivegroup(0);
+                log.info("Parsing:\t"+(gr.getWaysCount()+gr.getRelationsCount())+"\t"+t0+"\t"+t1);
                 parse(primblock);
             }
         } catch (InvalidProtocolBufferException e) {
@@ -78,13 +97,13 @@ public abstract class BinaryParser implements BlockHandler {
     /** Convert a latitude value stored in a protobuf into a double, compensating for granularity and latitude offset */
     public double parseLat(long degree) {
       // Support non-zero offsets. (We don't currently generate them)
-      return (granularity * degree + lat_offset) * .000000001;
+      return Math.round((granularity * degree + lat_offset) * .0001)/100000.0;
     }
 
     /** Convert a longitude value stored in a protobuf into a double, compensating for granularity and longitude offset */
     public double parseLon(long degree) {
       // Support non-zero offsets. (We don't currently generate them)
-       return (granularity * degree + lon_offset) * .000000001;
+       return Math.round((granularity * degree + lon_offset) * .0001)/100000.0;
     }
    
     /** Parse a Primitive block (containing a string table, other paramaters, and PrimitiveGroups */
@@ -104,11 +123,14 @@ public abstract class BinaryParser implements BlockHandler {
         for (Osmformat.PrimitiveGroup groupmessage : block
                 .getPrimitivegroupList()) {
             // Exactly one of these should trigger on each loop.
-            parseNodes(groupmessage.getNodesList());
+        	if (groupmessage.hasDense())
+        	{
+        		parseDense(groupmessage.getDense());
+        	}
+        	parseNodes(groupmessage.getNodesList());
             parseWays(groupmessage.getWaysList());
-            parseRelations(groupmessage.getRelationsList());
-            if (groupmessage.hasDense())
-                parseDense(groupmessage.getDense());
+            //parseRelations(groupmessage.getRelationsList());
+            
         }
     }
     

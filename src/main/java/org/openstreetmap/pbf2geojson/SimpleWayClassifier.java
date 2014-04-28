@@ -28,9 +28,9 @@ public class SimpleWayClassifier implements WayClassifier {
 		return way.getProperties().size() > 0;
 	}
 	@Override
-	public boolean isInteresting(SimpleNode node) {
-		cleanupProps(node.getProperties());
-		return node.getProperties().size() > 0;
+	public boolean isInteresting(Map<String, Object> props) {
+		cleanupProps(props);
+		return props.size() > 0;
 				
 	}
 	@Override

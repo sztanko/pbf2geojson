@@ -20,12 +20,14 @@ public class MemoryStorage implements Storage {
 
 	private Map<Long, SimpleNode> nodeMap;
 	private Map<Long, SimpleWay> wayMap;
+	//private Map<Long, Long> nMap;
 	
 	public MemoryStorage() {
 		super();
-		this.nodeMap = new ConcurrentHashMap<Long, SimpleNode>();
-		this.wayMap = new ConcurrentHashMap<Long, SimpleWay>();
-		//this.nodeMap = new HashMap<Long, SimpleNode>();
+		this.nodeMap = new ConcurrentHashMap<Long, SimpleNode>(400000);//,0.12f, 32);
+		//this.nMap = new ConcurrentHashMap<Long, Long>(400);//,0.12f, 32);
+		this.wayMap = new ConcurrentHashMap<Long, SimpleWay>(400);//,0.12f, 32);
+		//this.nodeMap = new HashMap<Long, SimpleNode>(400000);
 		//this.wayMap = new HashMap<Long, SimpleWay>();
 	
 	}
@@ -41,7 +43,7 @@ public class MemoryStorage implements Storage {
 	}
 
 	@Override
-	public SimpleWay getWay(Long ref) {
+	public SimpleWay getWay(long ref) {
 		return this.wayMap.get(ref);
 	}
 
@@ -56,10 +58,18 @@ public class MemoryStorage implements Storage {
 		this.nodeMap.put(node.getRef(), n);
 		return node;
 	}
+	
+	@Override
+	public void setNode(long ref, float lon, float lat) {
+		
+		SimpleNode n = new SimpleNode(lon, lat, ref,null);	
+		this.nodeMap.put(ref, n);
+
+	}
 
 
 	@Override
-	public SimpleNode getNode(Long ref) {
+	public SimpleNode getNode(long ref) {
 		SimpleNode sn =  this.nodeMap.get(ref);
 		if(sn==null)
 		{

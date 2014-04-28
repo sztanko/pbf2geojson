@@ -22,7 +22,6 @@ import org.openstreetmap.pbf.ParallelReader;
 import org.openstreetmap.pbf2geojson.convertors.Convertor;
 import org.openstreetmap.pbf2geojson.convertors.GeoJSONConvertor;
 import org.openstreetmap.pbf2geojson.storage.Storage;
-import org.openstreetmap.pbf2geojson.storage.impl.MapDBStorage;
 import org.openstreetmap.pbf2geojson.storage.impl.MemoryStorage;
 
 import java.util.stream.IntStream;
@@ -32,7 +31,7 @@ import sun.nio.ch.ChannelInputStream;
 public class Convert {
 
 	public static void main(String[] args) throws IOException, InterruptedException {
-		//Thread.sleep(20000);
+		//Thread.sleep(10000);
 //		InputStream input = ReadFileExample.class.getResourceAsStream("/sample.pbf");
 		InputStream input = System.in;
 		if(args.length>0)
@@ -41,37 +40,58 @@ public class Convert {
 			input = new FileInputStream(new File(args[0]));
 		}
 		
-		OutputStream output = System.out;
+		OutputStream outp = null;
 		//final File output;// = null;
 		if(args.length>1)
 		{
-			output = new FileOutputStream(new File(args[1]));
+			outp = new FileOutputStream(new File(args[1]));
 			//output = new File(args[1]);
 		//	output.mkdirs();
 		}
 		else
 		{
-			output = null;
+			outp = System.out;
+		}
+		final OutputStream output = outp;
+		int numP = Runtime.getRuntime().availableProcessors();
+		if(args.length>2)
+		{
+			numP = Integer.parseInt(args[2]);
 		}
 		
-		Writer out = new BufferedWriter(new PrintWriter(output), 10*1024*1024);
+		ThreadLocal<PrintWriter> pout = new ThreadLocal<PrintWriter>(){
+			@Override
+			protected PrintWriter initialValue() {
+				
+				try {
+					return new PrintWriter(new BufferedWriter(new PrintWriter(output+"."+Thread.currentThread().getName()), 10*1024*1024));
+				} catch (FileNotFoundException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				return null;
+			}
+		};
+		//Writer out = new BufferedWriter(new PrintWriter(output), 10*1024*1024);
 		Storage storage = new MemoryStorage();
 		//Storage storage = new MapDBStorage();
 		WayClassifier classifier = new SimpleWayClassifier();
 		Convertor convertor = new GeoJSONConvertor(new SimpleWayClassifier(), storage);
-		PrintWriter pout = new PrintWriter(out);
-		BinaryParser[] parsers = IntStream
-				.range(0,Runtime.getRuntime().availableProcessors())
+		//PrintWriter pout = new PrintWriter(out);
+		/*BinaryParser[] parsers = IntStream
+				.range(0,numP)
+				//.range(0,1)				
 				//.mapToObj(i -> new StreamParser(createFile(output, i), storage, convertor, classifier))
 				.mapToObj(i -> new StreamParser(pout, storage, convertor, classifier))	
 				.toArray(BinaryParser[]::new);
+	*/
 //		BinaryParser brad = new StreamParser(out, storage, convertor, classifier);
 		
 		
 
 		//BlockReaderAdapter brad = new ParallelStreamParser(pout, storage, convertor, classifier);
-		ParallelReader reader = new ParallelReader(input, parsers);
-		reader.readAndProcess();
+		//ParallelReader reader = new ParallelReader(input, parsers);
+		//reader.readAndProcess();
 		//new BlockInputStream(input, brad).process();
         storage.close();
 	}
