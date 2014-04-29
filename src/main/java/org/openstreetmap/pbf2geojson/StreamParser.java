@@ -3,6 +3,7 @@ package org.openstreetmap.pbf2geojson;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Writer;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,6 +15,8 @@ import org.openstreetmap.pbf2geojson.convertors.Convertor;
 import org.openstreetmap.pbf2geojson.convertors.ConvertorUtils;
 import org.openstreetmap.pbf2geojson.convertors.IncrementalLong;
 import org.openstreetmap.pbf2geojson.data.SimpleNode;
+import org.openstreetmap.pbf2geojson.data.SimpleRelation;
+import org.openstreetmap.pbf2geojson.data.SimpleRelation.Member;
 import org.openstreetmap.pbf2geojson.data.SimpleWay;
 import org.openstreetmap.pbf2geojson.storage.Storage;
 
@@ -124,6 +127,20 @@ public class StreamParser extends BinaryParser {
 
 	@Override
 	protected void parseRelations(List<Relation> rel) {
+		if(rel.size()==0)
+			return;
+		final StatsCollector sc = StatsCollector.getInstance();
+		sc.start();
+		rel
+	    .stream()
+		.map(this::fromRelation)
+		.map(storage::setRelation)
+//		.filter(classifier::isInteresting)
+		.map(convertor::convertRelation)
+		// .sequential()
+		.forEach(this::writeNoException);
+		sc.end("Parsed relation", rel.size());
+		
 		// log.info("There are "+rel.size()+ " relations in this block");
 		// rel.get(0).
 	}
@@ -187,6 +204,28 @@ public class StreamParser extends BinaryParser {
 				way.getKeysList(), way.getValsList(), this::getStringById);
 		SimpleWay w = new SimpleWay(coordinates, way.getId(), props);
 		return w;
+	}
+	
+	protected SimpleRelation fromRelation(Relation relation)
+	{
+		Map<String, Object> props = ConvertorUtils.getProperties(
+				relation.getKeysList(), relation.getValsList(), this::getStringById);
+		int id=0;
+		final Member[] members = new Member[relation.getMemidsCount()];
+		for(int i=0;i<relation.getMemidsCount();i++)
+		{
+			id+=relation.getMemids(i);
+			Member m = new Member();
+			m.setRef(id);
+			m.setType(relation.getTypes(i));
+			m.setRole(this.getStringById(relation.getRolesSid(i)));
+			members[i]=m;
+		}
+		SimpleRelation rel = new SimpleRelation();
+		rel.setMembers(members);
+		rel.setProperties(props);
+		rel.setType((String)props.get("type"));
+		return rel;
 	}
 
 	public void complete() {

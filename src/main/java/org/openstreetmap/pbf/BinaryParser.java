@@ -129,7 +129,7 @@ public abstract class BinaryParser implements BlockHandler {
         	}
         	parseNodes(groupmessage.getNodesList());
             parseWays(groupmessage.getWaysList());
-            //parseRelations(groupmessage.getRelationsList());
+            parseRelations(groupmessage.getRelationsList());
             
         }
     }

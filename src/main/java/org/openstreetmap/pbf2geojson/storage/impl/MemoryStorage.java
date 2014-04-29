@@ -9,6 +9,7 @@ import lombok.extern.java.Log;
 
 import org.geojson.Point;
 import org.openstreetmap.pbf2geojson.data.SimpleNode;
+import org.openstreetmap.pbf2geojson.data.SimpleRelation;
 import org.openstreetmap.pbf2geojson.data.SimpleWay;
 import org.openstreetmap.pbf2geojson.storage.Storage;
 
@@ -20,15 +21,17 @@ public class MemoryStorage implements Storage {
 
 	private Map<Long, SimpleNode> nodeMap;
 	private Map<Long, SimpleWay> wayMap;
+	private Map<Long, SimpleRelation> relationMap;
 	//private Map<Long, Long> nMap;
 	
 	public MemoryStorage() {
 		super();
 		this.nodeMap = new ConcurrentHashMap<Long, SimpleNode>(400000);//,0.12f, 32);
 		//this.nMap = new ConcurrentHashMap<Long, Long>(400);//,0.12f, 32);
-		this.wayMap = new ConcurrentHashMap<Long, SimpleWay>(400);//,0.12f, 32);
+		this.wayMap = new ConcurrentHashMap<Long, SimpleWay>(40000);//,0.12f, 32);
 		//this.nodeMap = new HashMap<Long, SimpleNode>(400000);
 		//this.wayMap = new HashMap<Long, SimpleWay>();
+		this.relationMap = new ConcurrentHashMap<Long, SimpleRelation>(40000);
 	
 	}
 
@@ -64,7 +67,6 @@ public class MemoryStorage implements Storage {
 		
 		SimpleNode n = new SimpleNode(lon, lat, ref,null);	
 		this.nodeMap.put(ref, n);
-
 	}
 
 
@@ -77,12 +79,25 @@ public class MemoryStorage implements Storage {
 		}
 		return sn;
 	}
-
+	@Override
+	public SimpleRelation setRelation(SimpleRelation ref) {
+		this.relationMap.put(ref.getRef(), ref);
+		return ref;
+	}
+	
+	@Override
+	public SimpleRelation getRelation(long ref) {
+		return this.relationMap.get(ref);
+	}
+	
 
 	@Override
 	public void close() {
 			
 	}
+
+
+	
 
 	
 }

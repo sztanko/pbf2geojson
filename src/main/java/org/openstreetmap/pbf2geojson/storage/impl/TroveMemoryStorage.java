@@ -18,6 +18,7 @@ import lombok.extern.java.Log;
 
 import org.geojson.Point;
 import org.openstreetmap.pbf2geojson.data.SimpleNode;
+import org.openstreetmap.pbf2geojson.data.SimpleRelation;
 import org.openstreetmap.pbf2geojson.data.SimpleWay;
 import org.openstreetmap.pbf2geojson.storage.Storage;
 
@@ -31,6 +32,7 @@ public class TroveMemoryStorage implements Storage {
 	private final TLongFloatHashMap lonMap;
 	//private Map<Long, SimpleNode> nodeMap;
 	private final TLongObjectHashMap<long[]> wayMap;
+	private final TLongObjectHashMap<SimpleRelation> relationMap;
 	//private final Map<Long, SimpleWay> wayMap;
 	//private final Map<Long, Long> nMap;
 	
@@ -38,7 +40,9 @@ public class TroveMemoryStorage implements Storage {
 		super();
 		this.latMap = new TLongFloatHashMap(400000);
 		this.lonMap = new TLongFloatHashMap(400000);				//ConcurrentHashMap<Long, SimpleNode>(400000);//,0.12f, 32);
-		this.wayMap = new TLongObjectHashMap<long[]>(400);//,0.12f, 32);
+		this.wayMap = new TLongObjectHashMap<long[]>(10000);//,0.12f, 32);
+		
+		this.relationMap = new TLongObjectHashMap<SimpleRelation>(400);
 		//this.nodeMap = new HashMap<Long, SimpleNode>(400000);
 		//this.wayMap = new HashMap<Long, SimpleWay>();
 	
@@ -49,14 +53,16 @@ public class TroveMemoryStorage implements Storage {
 	public SimpleWay setWay(SimpleWay way) {
 		
 //		SimpleWay w = new SimpleWay(way.getRefList(), way.getRef(), null);
-		 this.wayMap.put(way.getRef(), way.getRefList());
+		this.wayMap.put(way.getRef(), way.getRefList());
 		 return way;
 		
 	}
 
 	@Override
 	public SimpleWay getWay(long ref) {
-		return new SimpleWay(this.wayMap.get(ref), ref, null);
+		long[] w=this.wayMap.get(ref);
+		if(w==null) return null;
+		return new SimpleWay(w, ref, new HashMap<String, Object>());
 	}
 
 
@@ -81,7 +87,10 @@ public class TroveMemoryStorage implements Storage {
 
 	@Override
 	public SimpleNode getNode(long ref) {
-		return new SimpleNode(this.lonMap.get(ref), this.latMap.get(ref), ref,null);
+		float lon = this.lonMap.get(ref);
+		if(lon==0.0)
+			return null;
+		return new SimpleNode(lon, this.latMap.get(ref), ref,new HashMap<String, Object>());
 		
 		//SimpleNode sn =  this.nodeMap.get(ref);
 		//if(sn==null)
@@ -95,6 +104,19 @@ public class TroveMemoryStorage implements Storage {
 	@Override
 	public void close() {
 			
+	}
+
+
+	@Override
+	public SimpleRelation getRelation(long ref) {
+		return this.relationMap.get(ref);
+	}
+
+
+	@Override
+	public SimpleRelation setRelation(SimpleRelation ref) {
+		 this.relationMap.put(ref.getRef(), ref);
+		 return ref;
 	}
 
 	

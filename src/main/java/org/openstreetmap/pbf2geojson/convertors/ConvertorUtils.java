@@ -25,7 +25,11 @@ public class ConvertorUtils {
 	
 	public static  Stream<SimpleNode> retrieveNodes(SimpleWay way, Storage storage)
 	{
-		return Arrays.stream(way.getRefList()).mapToObj(storage::getNode);
+
+		//if(way.getRefList()==null)
+		//	return null;
+		return Arrays.stream(way.getRefList()).mapToObj(storage::getNode)
+				.filter(n -> n!=null);
 				//.toArray(SimpleNode[]::new);
 	}
 }
