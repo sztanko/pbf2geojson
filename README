@@ -1,7 +1,5 @@
 This is a yet another convertor of OpenStreetMap pbf files. This time it converts to geojson.
 
-It uses multiple cores and should be fast in theory. (I haven't done any benchmarks yet)
-
-On the other side, it keeps it's intermediate results in RAM which means it might fill up all your memory.
+It keeps the intermediate results in memory (I am using Trove Collections) that means good speed (faster then ogr2ogr), but lot's of memory consumption.
 
 This utility was created for my pet project Walks.IO and is a good excuse to try out Java 8 streams and lambdas.
