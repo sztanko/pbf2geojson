@@ -1,7 +1,12 @@
 package org.openstreetmap.pbf2geojson.convertors;
 
+import gnu.trove.list.TLongList;
+import gnu.trove.list.array.TLongArrayList;
+import gnu.trove.set.hash.TLongHashSet;
+
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -28,6 +33,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import crosby.binary.Osmformat.Relation.MemberType;
+import java.util.stream.Stream;
 
 @Log
 public class GeoJSONConvertor implements Convertor {
@@ -147,7 +153,7 @@ public class GeoJSONConvertor implements Convertor {
 		return collection;
 	}
 
-	protected GeoJsonObject parseAsPolygon(SimpleRelation rel) {
+	protected GeoJsonObject parseAsPolygonOld(SimpleRelation rel) {
 		MultiPolygon f = new MultiPolygon();
 		f.setProperties(rel.getProperties());
 		//List<List<LngLatAlt>> interiors = new ArrayList<List<LngLatAlt>>();
@@ -177,7 +183,6 @@ public class GeoJSONConvertor implements Convertor {
 
 		}
 	
-//		interiors.forEach(f::addInteriorRing);
 		return f;
 	}
 
@@ -199,5 +204,139 @@ public class GeoJSONConvertor implements Convertor {
 		}
 
 		return f;
+	}
+
+	protected GeoJsonObject parseAsPolygon(SimpleRelation rel) {
+		//List<List<LngLatAlt>> interiors = new ArrayList<List<LngLatAlt>>();
+		MultiPolygonGenerator g = new MultiPolygonGenerator(storage);
+		for (Member m : rel.getMembers()) {
+			g.process(m);
+		}
+		MultiPolygon f = g.complete();
+		f.setProperties(rel.getProperties());
+		return f;
+	}
+	
+	protected static class MultiPolygonGenerator
+	{
+		public static enum State {OUTER, INNER};
+		
+		State state;
+		MultiPolygon f;
+		
+		Polygon p;
+		Storage storage;
+		
+		TLongList refs;
+		
+		boolean isPolygonNew = true;
+		boolean hasExteriror = false;
+		
+		public MultiPolygonGenerator(Storage storage)
+		{
+			state = State.OUTER;
+			f = new MultiPolygon();
+			this.storage = storage;
+			p = new Polygon();
+			refs = new TLongArrayList();
+		}
+		
+		public void process(Member m)
+		{
+			if (m.getType() != MemberType.WAY) return;
+			SimpleWay w = this.storage.getWay(m.getRef());
+			if(w==null) return;
+			String role = m.getRole();
+			switch(state){
+				case OUTER:
+					if("outer".equals(role) || "".equals(role))
+					{
+						refs.addAll(w.getRefList());
+						if(refs.get(0)==refs.get(refs.size()-1))
+						{
+							completeExterior();		
+							// We have closed a circle, happy to go to the inner state
+						}
+					}
+					if("inner".equals(role))
+					{
+						//so we now have inner ways starting, we should complete the exterior ring as it is
+						completeExterior();
+						refs.addAll(w.getRefList());
+						if(refs.get(0)==refs.get(refs.size()-1))
+						{
+							addInterior();
+						}
+					}
+					
+					break;
+				case INNER:
+					if("outer".equals(role) || "".equals(role))
+					{
+						completePolygon();
+						refs.addAll(w.getRefList());
+						if(refs.get(0)==refs.get(refs.size()-1))
+						{
+							completeExterior();		
+							// We have closed a circle, happy to go to the inner state
+						}
+					}
+					if("inner".equals(role))
+					{
+						//so we now have inner ways starting, we should complete the exterior ring as it is
+						refs.addAll(w.getRefList());
+						if(refs.get(0)==refs.get(refs.size()-1))
+						{
+							addInterior();
+						}
+					}
+			}
+		}
+		
+		public MultiPolygon complete()
+		{
+			if(!isPolygonNew)
+				f.add(p);
+			return f;
+		}
+		
+		public void completePolygon()
+		{
+			f.add(p);
+			p = new Polygon();
+			isPolygonNew=true;
+		}
+
+		
+		public void completeExterior()
+		{
+			List<LngLatAlt> coords = completeRef();
+			p.setExteriorRing(coords);
+			state=State.INNER;
+			isPolygonNew=false;
+			
+		}		
+		public void addInterior()
+		{
+			
+			List<LngLatAlt> coords = completeRef();
+			if(isPolygonNew) return ;
+			p.addInteriorRing(coords);
+			state=State.INNER;
+			
+		}
+
+		public List<LngLatAlt> completeRef(){
+			List<LngLatAlt> coords = 
+					Arrays.stream(refs.toArray())
+					.mapToObj(this.storage::getNode)
+					.filter(n -> n!=null)
+					.map(s -> new LngLatAlt(s.getLon(), s.getLat()))
+					.collect(Collectors.toList());
+
+			refs = new TLongArrayList();
+			return coords;
+		}
+		//public void handleWay()
 	}
 }
