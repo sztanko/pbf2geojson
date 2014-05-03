@@ -49,6 +49,11 @@ public class MemoryStorage implements Storage {
 	public SimpleWay getWay(long ref) {
 		return this.wayMap.get(ref);
 	}
+	
+	@Override
+	public SimpleWay getWay(long ref, SimpleWay w) {
+		return this.getWay(ref);
+	}
 
 
 	@Override
@@ -79,6 +84,12 @@ public class MemoryStorage implements Storage {
 		}
 		return sn;
 	}
+	
+	@Override
+	public SimpleNode getNode(long ref, SimpleNode n) {
+		return getNode(ref);
+	}
+	
 	@Override
 	public SimpleRelation setRelation(SimpleRelation ref) {
 		this.relationMap.put(ref.getRef(), ref);

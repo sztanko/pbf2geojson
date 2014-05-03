@@ -64,6 +64,16 @@ public class TroveMemoryStorage implements Storage {
 		if(w==null) return null;
 		return new SimpleWay(w, ref, new HashMap<String, Object>());
 	}
+	
+	@Override
+	public SimpleWay getWay(long ref, SimpleWay w) {
+		long[] ww=this.wayMap.get(ref);
+		if(ww==null) return null;
+		w.setRefList(ww);
+		w.setRef(ref);
+		w.getProperties().clear();
+		return w;
+	}
 
 
 	@Override
@@ -92,6 +102,24 @@ public class TroveMemoryStorage implements Storage {
 			return null;
 		return new SimpleNode(lon, this.latMap.get(ref), ref,new HashMap<String, Object>());
 		
+		//SimpleNode sn =  this.nodeMap.get(ref);
+		//if(sn==null)
+		//{
+		//	log.warning("Node ref "+ref+" is null");
+		//}
+		//return sn;
+	}
+	
+	@Override
+	public SimpleNode getNode(long ref, SimpleNode n) {
+		float lon = this.lonMap.get(ref);
+		if(lon==0.0)
+			return null;
+		n.setLon(lon);
+		n.setLat(this.latMap.get(ref));
+		n.setRef(ref);
+		n.getProperties().clear();
+		return n;		
 		//SimpleNode sn =  this.nodeMap.get(ref);
 		//if(sn==null)
 		//{

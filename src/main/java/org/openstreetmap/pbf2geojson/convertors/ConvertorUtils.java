@@ -22,6 +22,16 @@ public class ConvertorUtils {
 		return props;
 	}
 	
+	public static  Map<String, Object> getProperties(List<Integer> keys,
+			List<Integer> vals, Function<Integer, String> lookupFunction,Map<String, Object> props) {
+		props.clear();
+		for (int i = 0; i < keys.size(); i++) {
+			props.put(lookupFunction.apply(keys.get(i)),
+					lookupFunction.apply(vals.get(i)));
+		}
+		return props;
+	}
+	
 	
 	public static  Stream<SimpleNode> retrieveNodes(SimpleWay way, Storage storage)
 	{
