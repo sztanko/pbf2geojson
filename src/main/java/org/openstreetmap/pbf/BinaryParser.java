@@ -18,10 +18,6 @@
 package org.openstreetmap.pbf;
 
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.Date;
 import java.util.List;
 
