@@ -73,6 +73,7 @@ public class GeoJSONConvertor implements Convertor {
 
 	@Override
 	public String convertWay(SimpleWay way) throws ConvertorException {
+		//return "";
 		GeoJsonObject f = parseWay(way);
 		return convertToString(f);
 

@@ -11,6 +11,8 @@ out['features']=[]
 c=1;
 for line in sys.stdin:
     j=json.loads(line)
+    if not 'properties' in j:
+            continue
     f={'type': 'Feature'}
     f['properties']=j['properties']
     f['id']=c
