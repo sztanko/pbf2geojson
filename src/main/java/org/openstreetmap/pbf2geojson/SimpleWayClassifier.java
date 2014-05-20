@@ -13,6 +13,7 @@ public class SimpleWayClassifier implements WayClassifier {
 	@Override
 	public boolean isLineString(SimpleNode[] coordinates,
 			Map<String, Object> props) {
+		if(coordinates.length<=2) return true;
 		SimpleNode fc = coordinates[0];
 		SimpleNode lc = coordinates[coordinates.length-1];
 		if (!(lc.getLat()==fc.getLat() && lc.getLon()==fc.getLon()))
@@ -23,6 +24,20 @@ public class SimpleWayClassifier implements WayClassifier {
 		}
 		return false;
 	}
+	
+	@Override
+	public boolean isLineString(SimpleWay way) {
+		long fc = way.getRefList()[0];
+		long lc = way.getRefList()[way.getRefListLength()-1];
+		if (lc!=fc)
+			return true;
+		if(way.getProperties().containsKey("highway"))
+		{
+			return true;
+		}
+		return false;
+	}
+	
 	@Override
 	public boolean isInteresting(SimpleWay way) {
 		return way.getProperties().size() > 0;

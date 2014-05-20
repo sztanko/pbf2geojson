@@ -5,10 +5,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-
 import org.openstreetmap.pbf.BinaryParser;
-import org.openstreetmap.pbf2geojson.convertors.Convertor;
 import org.openstreetmap.pbf2geojson.convertors.ConvertorUtils;
+import org.openstreetmap.pbf2geojson.convertors.GeoJSONConvertor;
+import org.openstreetmap.pbf2geojson.convertors.IncrementalInt;
 import org.openstreetmap.pbf2geojson.convertors.IncrementalLong;
 import org.openstreetmap.pbf2geojson.data.SimpleNode;
 import org.openstreetmap.pbf2geojson.data.SimpleRelation;
@@ -26,16 +26,34 @@ import crosby.binary.Osmformat.Way;
 public class StreamParser extends BinaryParser {
 	PrintWriter out;
 	Storage storage;
-	Convertor convertor;
+	GeoJSONConvertor convertor;
 	WayClassifier classifier;
-
+	boolean nodesDone;
+	/*
+	public static ThreadLocal<char[]> charTargets = new ThreadLocal<char[]>(){
+		@Override
+		protected char[] initialValue() {
+			return new char[300000];
+		}
+		
+	};
+	public StringBuilder builder = new StringBuilder(300000);
+	public static ThreadLocal<StringBuilder> builders = new ThreadLocal<StringBuilder>(){
+		@Override
+		protected StringBuilder initialValue() {
+			return new StringBuilder(10000);
+		}
+		
+	};
+	*/
 	public StreamParser(final PrintWriter out, final Storage storage,
-			final Convertor convertor, final WayClassifier classifier) {
+			final GeoJSONConvertor convertor, final WayClassifier classifier) {
 		super();
 		this.out = out;
 		this.storage = storage;
 		this.convertor = convertor;
 		this.classifier = classifier;
+		this.nodesDone=false;
 	}
 
 	@Override
@@ -79,8 +97,6 @@ public class StreamParser extends BinaryParser {
 		
 		}
 
-		
-
 	}
 
 	@Override
@@ -110,17 +126,41 @@ public class StreamParser extends BinaryParser {
 	protected void parseWays(List<Way> ways) {
 		if (ways.size() == 0)
 			return;
-		ways.stream().map(this::fromWay).map(storage::setWay)
-				.filter(classifier::isInteresting).map(convertor::convertWay)
-				.forEach(this::writeNoException);
+		if(!nodesDone)
+		{
+			nodesDone=true;
+			this.storage.finalizeNodes();
+		}
+		
+		int maxWays = ways.stream().mapToInt(s-> s.getRefsCount()).max().getAsInt();
+		final SimpleWay target = new SimpleWay(maxWays+1, new long[maxWays+1], 0, new HashMap<String, Object>());
+		final char[] charTarget = new char[maxWays*30];
+		
+		StringBuilder builder = new StringBuilder(maxWays*30);
+		//char[] charTarget = charTargets.get();
+		ways.stream()
+		.map(w -> this.copyFromWay(w, target))
+		//.map(this::fromWay)
+		.map(storage::setWay)
+				.filter(classifier::isInteresting)
+				.map(convertor::parseWay)
+				.map(g -> ConvertorUtils.wayToString(g, builder))
+				.map(buf ->{builder.append('\n'); buf.getChars(0, builder.length(), charTarget, 0); return charTarget;})
+				.forEach(chars -> this.writeNoException(chars, builder.length()));
 
 	}
 
 	protected void writeNoException(String str) {
 		out.println(str);
-
 	}
-
+	protected void writeNoException(char[] buf, int length) {
+		//buf.chars().forEach(out::print);
+		out.write(buf,0, length);
+		//print(buf);
+		//(buf, length);
+	}
+	
+/*
 	protected Map<String, Object> getPropsForPosition(IncrementalLong position,
 			List<Integer> keyvals) {
 		Map<String, Object> curMap = new HashMap<String, Object>();
@@ -133,7 +173,7 @@ public class StreamParser extends BinaryParser {
 		i++;
 		position.incr(i - position.getCount());
 		return curMap;
-	}
+	}*/
 
 	protected SimpleNode fromDenseNode(DenseNodes denseNodes, int i,
 			Map<String, Object> props) {
@@ -157,15 +197,29 @@ public class StreamParser extends BinaryParser {
 				.mapToLong(refLong::incr).toArray();
 		Map<String, Object> props = ConvertorUtils.getProperties(
 				way.getKeysList(), way.getValsList(), this::getStringById);
-		SimpleWay w = new SimpleWay(coordinates, way.getId(), props);
+		SimpleWay w = new SimpleWay(coordinates.length, coordinates, way.getId(), props);
 		return w;
+	}
+	
+	protected SimpleWay copyFromWay(Way way, SimpleWay target) {
+		final IncrementalLong refLong = new IncrementalLong();
+		final IncrementalInt index = new IncrementalInt(-1);
+		final long[] coordinates = target.getRefList();
+		way.getRefsList().stream().
+				forEach(ref -> coordinates[index.incr(1)]=refLong.incr(ref.longValue()));
+				//.mapToLong(refLong::incr).toArray();
+		target.setRefListLength(index.getCount()+1);
+		ConvertorUtils.getProperties(
+				way.getKeysList(), way.getValsList(), this::getStringById, target.getProperties());
+		target.setRef(way.getId());
+		return target;
 	}
 
 	protected SimpleRelation fromRelation(Relation relation) {
 		Map<String, Object> props = ConvertorUtils.getProperties(
 				relation.getKeysList(), relation.getValsList(),
 				this::getStringById);
-		int id = 0;
+		long id = 0;
 		final Member[] members = new Member[relation.getMemidsCount()];
 		for (int i = 0; i < relation.getMemidsCount(); i++) {
 			id += relation.getMemids(i);

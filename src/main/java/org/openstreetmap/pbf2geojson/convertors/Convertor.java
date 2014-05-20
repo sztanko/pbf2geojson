@@ -1,14 +1,8 @@
 package org.openstreetmap.pbf2geojson.convertors;
 
-import java.util.function.Function;
-
 import org.openstreetmap.pbf2geojson.data.SimpleNode;
 import org.openstreetmap.pbf2geojson.data.SimpleRelation;
 import org.openstreetmap.pbf2geojson.data.SimpleWay;
-
-import crosby.binary.Osmformat.Node;
-import crosby.binary.Osmformat.Relation;
-import crosby.binary.Osmformat.Way;
 
 public interface Convertor {
 

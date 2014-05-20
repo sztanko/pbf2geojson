@@ -2,11 +2,9 @@ package org.openstreetmap.pbf2geojson.convertors;
 
 import gnu.trove.list.TLongList;
 import gnu.trove.list.array.TLongArrayList;
-import gnu.trove.set.hash.TLongHashSet;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.BitSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -33,7 +31,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import crosby.binary.Osmformat.Relation.MemberType;
-import java.util.stream.Stream;
 
 @Log
 public class GeoJSONConvertor implements Convertor {
@@ -82,9 +79,13 @@ public class GeoJSONConvertor implements Convertor {
 	public GeoJsonObject parseWay(SimpleWay way) {
 		GeoJsonObject f = null;
 
-		SimpleNode[] coordinates = ConvertorUtils.retrieveNodes(way, storage)
+		SimpleNode[] coordinates = 
+				//IntStream.range(0,way.getRefListLength())
+				//.mapToObj(i -> storage.get)
+				ConvertorUtils.retrieveNodes(way, storage)
 				.toArray(SimpleNode[]::new);
-		List<LngLatAlt> lngLats = Arrays.stream(coordinates)
+		List<LngLatAlt> lngLats = 
+				Arrays.stream(coordinates)
 				.map(s -> new LngLatAlt(s.getLon(), s.getLat()))
 				.collect(Collectors.toList());
 		if (classifier.isLineString(coordinates, way.getProperties())) {
@@ -136,6 +137,8 @@ public class GeoJSONConvertor implements Convertor {
 		final GeometryCollection collection = new GeometryCollection();
 		for (Member m : rel.getMembers()) {
 			if (m.getType() == MemberType.NODE) {
+				if(m.getRef()<0)
+					log.info("Relation #"+rel.getRef()+" has negative ref "+m.getRef());
 				SimpleNode n = storage.getNode(m.getRef());
 				if (n != null)
 					collection.add(this.parseNode(n));
@@ -190,11 +193,13 @@ public class GeoJSONConvertor implements Convertor {
 	protected GeoJsonObject parseAsWay(SimpleRelation rel) {
 		MultiLineString f = new MultiLineString();
 		f.setProperties(rel.getProperties());
+		SimpleWay w = new SimpleWay(0, new long[10000], 0, new HashMap<String,Object>());
 		for (Member m : rel.getMembers()) {
 			List<LngLatAlt> coords = null;
 			if (m.getType() == MemberType.WAY) {
-				SimpleWay w = this.storage.getWay(m.getRef());
-				if (w != null) {
+				SimpleWay tempw = this.storage.getWay(m.getRef(),w);
+				
+				if (tempw != null) {
 					coords = ConvertorUtils.retrieveNodes(w, this.storage)
 							.map(s -> new LngLatAlt(s.getLon(), s.getLat()))
 							.collect(Collectors.toList());
@@ -252,8 +257,8 @@ public class GeoJSONConvertor implements Convertor {
 				case OUTER:
 					if("outer".equals(role) || "".equals(role))
 					{
-						refs.addAll(w.getRefList());
-						if(refs.get(0)==refs.get(refs.size()-1))
+						refs.add(w.getRefList(), 0, w.getRefListLength());
+						if(refs.size()>2 && refs.get(0)==refs.get(refs.size()-1))
 						{
 							completeExterior();		
 							// We have closed a circle, happy to go to the inner state
@@ -263,8 +268,8 @@ public class GeoJSONConvertor implements Convertor {
 					{
 						//so we now have inner ways starting, we should complete the exterior ring as it is
 						completeExterior();
-						refs.addAll(w.getRefList());
-						if(refs.get(0)==refs.get(refs.size()-1))
+						refs.add(w.getRefList(), 0, w.getRefListLength());
+						if(refs.size()>2 && refs.get(0)==refs.get(refs.size()-1))
 						{
 							addInterior();
 						}
@@ -275,8 +280,8 @@ public class GeoJSONConvertor implements Convertor {
 					if("outer".equals(role) || "".equals(role))
 					{
 						completePolygon();
-						refs.addAll(w.getRefList());
-						if(refs.get(0)==refs.get(refs.size()-1))
+						refs.add(w.getRefList(), 0, w.getRefListLength());
+						if(refs.size()>2 && refs.get(0)==refs.get(refs.size()-1))
 						{
 							completeExterior();		
 							// We have closed a circle, happy to go to the inner state
@@ -284,9 +289,8 @@ public class GeoJSONConvertor implements Convertor {
 					}
 					if("inner".equals(role))
 					{
-						//so we now have inner ways starting, we should complete the exterior ring as it is
-						refs.addAll(w.getRefList());
-						if(refs.get(0)==refs.get(refs.size()-1))
+						refs.add(w.getRefList(), 0, w.getRefListLength());
+						if(refs.size()>2 && refs.get(0)==refs.get(refs.size()-1))
 						{
 							addInterior();
 						}

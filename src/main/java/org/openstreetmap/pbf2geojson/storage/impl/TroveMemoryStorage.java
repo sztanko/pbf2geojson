@@ -1,30 +1,18 @@
 package org.openstreetmap.pbf2geojson.storage.impl;
 
 
-import gnu.trove.list.array.TDoubleArrayList;
-import gnu.trove.list.array.TLongArrayList;
 import gnu.trove.map.hash.TLongFloatHashMap;
-import gnu.trove.map.hash.TLongLongHashMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 import lombok.extern.java.Log;
 
-import org.geojson.Point;
 import org.openstreetmap.pbf2geojson.data.SimpleNode;
 import org.openstreetmap.pbf2geojson.data.SimpleRelation;
 import org.openstreetmap.pbf2geojson.data.SimpleWay;
 import org.openstreetmap.pbf2geojson.storage.Storage;
 
-import crosby.binary.Osmformat.Node;
-import crosby.binary.Osmformat.Relation;
-import crosby.binary.Osmformat.Way;
 @Log
 public class TroveMemoryStorage implements Storage {
 
@@ -62,7 +50,7 @@ public class TroveMemoryStorage implements Storage {
 	public SimpleWay getWay(long ref) {
 		long[] w=this.wayMap.get(ref);
 		if(w==null) return null;
-		return new SimpleWay(w, ref, new HashMap<String, Object>());
+		return new SimpleWay(w.length, w, ref, new HashMap<String, Object>());
 	}
 	
 	@Override
@@ -145,6 +133,20 @@ public class TroveMemoryStorage implements Storage {
 	public SimpleRelation setRelation(SimpleRelation ref) {
 		 this.relationMap.put(ref.getRef(), ref);
 		 return ref;
+	}
+
+
+	@Override
+	public void finalizeNodes() {
+		// TODO Auto-generated method stub
+		
+	}
+
+
+	@Override
+	public void finalizeWays() {
+		// TODO Auto-generated method stub
+		
 	}
 
 	

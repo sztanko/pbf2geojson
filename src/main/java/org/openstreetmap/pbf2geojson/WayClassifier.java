@@ -10,6 +10,9 @@ import crosby.binary.Osmformat.Relation;
 public interface WayClassifier {
 boolean isLineString(SimpleNode[] coordinates, Map<String, Object> props);
 
+boolean isLineString(SimpleWay way);
+
+
 boolean isInteresting(SimpleWay way);
 
 boolean isInteresting(Map<String, Object> props);

@@ -35,10 +35,10 @@ import crosby.binary.Osmformat.PrimitiveGroup;
 @Log
 public abstract class BinaryParser implements BlockHandler {
     protected int granularity;
-    private long lat_offset;
-    private long lon_offset;
+    protected long lat_offset;
+    protected long lon_offset;
     protected int date_granularity;
-    private String strings[];
+    protected String strings[];
 
     /** Take a Info protocol buffer containing a date and convert it into a java Date object */
     protected Date getDate(Osmformat.Info info) {
@@ -102,7 +102,7 @@ public abstract class BinaryParser implements BlockHandler {
        return Math.round((granularity * degree + lon_offset) * .0001)/100000.0;
     }
    
-    /** Parse a Primitive block (containing a string table, other paramaters, and PrimitiveGroups */
+    /** Parse a Primitive block (containing a string table, other parameters, and PrimitiveGroups */
     public void parse(Osmformat.PrimitiveBlock block) {
         Osmformat.StringTable stablemessage = block.getStringtable();
         strings = new String[stablemessage.getSCount()];

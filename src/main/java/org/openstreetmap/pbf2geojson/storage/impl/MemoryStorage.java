@@ -1,34 +1,34 @@
 package org.openstreetmap.pbf2geojson.storage.impl;
 
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import lombok.extern.java.Log;
 
-import org.geojson.Point;
 import org.openstreetmap.pbf2geojson.data.SimpleNode;
 import org.openstreetmap.pbf2geojson.data.SimpleRelation;
 import org.openstreetmap.pbf2geojson.data.SimpleWay;
 import org.openstreetmap.pbf2geojson.storage.Storage;
+import org.xerial.snappy.Snappy;
 
-import crosby.binary.Osmformat.Node;
-import crosby.binary.Osmformat.Relation;
-import crosby.binary.Osmformat.Way;
 @Log
 public class MemoryStorage implements Storage {
 
 	private Map<Long, SimpleNode> nodeMap;
-	private Map<Long, SimpleWay> wayMap;
+	private Map<Long, byte[]> wayMap;
 	private Map<Long, SimpleRelation> relationMap;
 	//private Map<Long, Long> nMap;
+	private static final Map<String, Object> EMPTY_MAP = new HashMap<String,Object>();
+	
 	
 	public MemoryStorage() {
 		super();
 		this.nodeMap = new ConcurrentHashMap<Long, SimpleNode>(400000);//,0.12f, 32);
 		//this.nMap = new ConcurrentHashMap<Long, Long>(400);//,0.12f, 32);
-		this.wayMap = new ConcurrentHashMap<Long, SimpleWay>(40000);//,0.12f, 32);
+		this.wayMap = new ConcurrentHashMap<Long, byte[]>(40000);//,0.12f, 32);
 		//this.nodeMap = new HashMap<Long, SimpleNode>(400000);
 		//this.wayMap = new HashMap<Long, SimpleWay>();
 		this.relationMap = new ConcurrentHashMap<Long, SimpleRelation>(40000);
@@ -38,21 +38,44 @@ public class MemoryStorage implements Storage {
 	
 	@Override
 	public SimpleWay setWay(SimpleWay way) {
-		
-		SimpleWay w = new SimpleWay(way.getRefList(), way.getRef(), null);
-		 this.wayMap.put(way.getRef(), w);
+		try {
+			byte[] w = Snappy.rawCompress(way.getRefList(), way.getRefListLength());
+			this.wayMap.put(way.getRef(), w);
+		} catch (IOException e) {
+			e.printStackTrace();
+		} 
 		 return way;
 		
 	}
 
 	@Override
 	public SimpleWay getWay(long ref) {
-		return this.wayMap.get(ref);
+		
+		//long[] ways=this.wayMap.get(ref);
+		byte[] wc = this.wayMap.get(ref);
+		if(wc==null) return null;
+		long[] ways;
+		try {
+			ways = Snappy.uncompressLongArray(wc);
+			SimpleWay w = new SimpleWay(ways.length, ways, ref, EMPTY_MAP);
+			return w;
+		} catch (IOException e) {
+		}
+		return null;
 	}
 	
 	@Override
 	public SimpleWay getWay(long ref, SimpleWay w) {
-		return this.getWay(ref);
+		byte[] wc = this.wayMap.get(ref);
+		if(wc==null) return null;
+		int l;
+		try {
+			l = Snappy.rawUncompress(wc, 0, wc.length, w.getRefList(), 0);
+			w.setRefListLength(l);
+			return w;
+		} catch (IOException e) {
+		}
+		return null;
 	}
 
 
@@ -78,10 +101,8 @@ public class MemoryStorage implements Storage {
 	@Override
 	public SimpleNode getNode(long ref) {
 		SimpleNode sn =  this.nodeMap.get(ref);
-		if(sn==null)
-		{
-			log.warning("Node ref "+ref+" is null");
-		}
+		if(sn==null) return sn;
+		sn.setProperties(EMPTY_MAP);
 		return sn;
 	}
 	
@@ -105,6 +126,18 @@ public class MemoryStorage implements Storage {
 	@Override
 	public void close() {
 			
+	}
+
+
+	@Override
+	public void finalizeNodes() {
+		
+	}
+
+
+	@Override
+	public void finalizeWays() {
+		
 	}
 
 

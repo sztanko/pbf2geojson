@@ -1,10 +1,9 @@
 package org.openstreetmap.pbf2geojson.data;
 
-import java.util.List;
 import java.util.Map;
 
-import crosby.binary.Osmformat.Relation.MemberType;
 import lombok.Data;
+import crosby.binary.Osmformat.Relation.MemberType;
 
 @Data
 public class SimpleRelation {
