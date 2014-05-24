@@ -15,16 +15,20 @@ public class RemainderByteBufferNodeStore implements NodeStore{
 	
 	public RemainderByteBufferNodeStore(long capacity)
 	{
-		int numBuckets = (int)(capacity/(1024*1024*1024/16) +1);
+		int numBuckets = Integer.max((int)(capacity/(1024*1024*1024/16) +1), 300);
+		log.info("Number of buckets is going to be "+numBuckets);
 		this.numBuckets = numBuckets;
 		this.stores = new ByteBufferNodeStore[numBuckets];
 		for(int i=0;i<numBuckets;i++)
-		this.stores[i] = new ByteBufferNodeStore((int)(capacity/numBuckets + 1));
+		this.stores[i] = new ByteBufferNodeStore((int)(capacity/numBuckets + 300));
 	}
 
 	@Override
 	public void setNode(long ref, float lon, float lat) {
-		stores[(int)(ref%this.numBuckets)].setNode(ref/this.numBuckets, lon, lat);
+		int r = (int)(ref/this.numBuckets);
+		//if(r<0)
+		//	log.info("Node "+ref+" is absolutely large: "+r);
+		stores[(int)(ref%this.numBuckets)].setNode(r, lon, lat);
 	}
 	
 	@Override

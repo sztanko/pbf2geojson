@@ -3,12 +3,15 @@ package org.openstreetmap.pbf2geojson.storage;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
+import lombok.extern.java.Log;
+
+@Log
 public class ByteBufSort {
 
 	private final ByteBuffer b;
 	private final int recordSize;
-	private final int SYSTEM_SORT_THRESHOLD = 32*1024*1024;
-
+	private final int SYSTEM_SORT_THRESHOLD = 32 * 1024 * 1024;
+	
 	ByteBufSort(ByteBuffer b) {
 		this.b = b;
 		this.recordSize = 8;
@@ -29,25 +32,23 @@ public class ByteBufSort {
 			return firstpl;
 	}
 
-	private void quickSortInternal(int low, int high)
-	{
-		long[] buf = new long[high-low+1];
-		for(int i=low;i<=high;i++)
-		{
-			//int index=i-low;
-			buf[i-low] = b.getLong(i*recordSize);
-			//= StorageUtil.packInts(b.getInt(i*recordSize), b.getInt(i*recordSize+32));
+	private void quickSortInternal(int low, int high) {
+		long[] buf = new long[high - low + 1];
+		for (int i = low; i <= high; i++) {
+			// int index=i-low;
+			buf[i - low] = b.getLong(i * recordSize);
+			// = StorageUtil.packInts(b.getInt(i*recordSize),
+			// b.getInt(i*recordSize+32));
 		}
-		
+
 		Arrays.parallelSort(buf);
-		for(int i=low;i<=high;i++)
-		{
-			b.putLong(i*recordSize, buf[i-low]);
+		for (int i = low; i <= high; i++) {
+			b.putLong(i * recordSize, buf[i - low]);
 		}
 	}
-	
+
 	private void quickSort(int low, int high) {
-		if(high-low<SYSTEM_SORT_THRESHOLD){
+		if (high - low < SYSTEM_SORT_THRESHOLD) {
 			quickSortInternal(low, high);
 			return;
 		}
@@ -113,4 +114,6 @@ public class ByteBufSort {
 		new ByteBufSort(b).sort(maxIndex);
 	}
 
-}
+
+	
+	}

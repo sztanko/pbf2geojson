@@ -13,18 +13,22 @@ public class ByteBufferStore implements ByteStore {
 	ByteBuffer refBuf;
 	protected int capacity;
 	int pos, offset;
-
+	protected int[][] ranges;
+	int minRef, maxRef;
+	
 	public ByteBufferStore(int capacity, int numRefs) {
 		this.capacity = capacity;
 		this.pos = 0;
 		this.offset = 0;
 		buf = ByteBuffer.allocateDirect(numRefs * 8 + capacity * 4);
 		refBuf = ByteBuffer.allocateDirect(capacity * 8);
+		//this.ranges = new int[LOOKUP_SIZE][2];
 	}
 
 	@Override
 	public byte[] get(long ref) {
 		int pos = this.searchNodeIndex((int) ref);
+		
 		if (pos == -1)
 			return null;
 		int offset = this.refBuf.getInt(pos * 8 + 4);
@@ -72,9 +76,12 @@ public class ByteBufferStore implements ByteStore {
 		return this.refBuf.getInt(index << 3);
 	}
 
+	
 	protected int searchNodeIndex(int key) {
-		int lo = 0;
-		int hi = pos - 1;
+		return this.searchNodeIndexRange(key, 0, pos-1);
+	}
+	
+	protected int searchNodeIndexRange(int key, int lo, int hi) {
 		while (lo <= hi) {
 			// Key is in a[lo..hi] or not present.
 			int mid = lo + (hi - lo) / 2;
@@ -99,6 +106,7 @@ public class ByteBufferStore implements ByteStore {
 	public void prepareForGet() {
 		ByteBufSort.sort(this.refBuf, pos);
 		//log.info("Smallest ref is " + this.refBuf.getInt(0));
+		
 	}
 
 }
