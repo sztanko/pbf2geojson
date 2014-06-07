@@ -45,9 +45,12 @@ public class ConvertMultiThread {
 			while (true) {
 				RawBlockPair p = FileBlock.processRaw(datinput);
 				FileBlock bl = p.getHead().parseData(p.getContents());
+				log.info("Block type is "+bl.getType());
 				if (bl.getType().equals("OSMData")) {
+					//log.info("low level Parsing block");
 					PrimitiveBlock block = Osmformat.PrimitiveBlock
 							.parseFrom(bl.getData());
+					//log.info("Finished low level parsing of block");
 					BinaryParser parser = parserFactory.call();
 					parser.parse(block);
 				}
@@ -55,6 +58,7 @@ public class ConvertMultiThread {
 			}
 
 		} catch (EOFException e) {
+			log.info("EOF");
 			// do nothing
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -94,7 +98,7 @@ public class ConvertMultiThread {
 					// q.size());
 					Runnable r;
 					try {
-						while ((r = q.poll(500, TimeUnit.MILLISECONDS)) != null) {
+						while ((r = q.poll(2000, TimeUnit.MILLISECONDS)) != null) {
 							// log.info("Running parser");
 							r.run();
 						}
@@ -149,13 +153,12 @@ public class ConvertMultiThread {
 		try {
 			size = Files.size(f.toPath());
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		stats.setNodeCount(size / 7);
-		stats.setWayCount(size / 70);
-		stats.setRelationCount(size / 250);
-		stats.setNodeRefCount(size / 8);
+		stats.setNodeCount(size / 6);
+		stats.setWayCount(size / 50);
+		stats.setRelationCount(size / 190);
+		stats.setNodeRefCount(size / 6);
 
 	}
 

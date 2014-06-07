@@ -3,8 +3,8 @@ fname=$1
 #java8=`which java`
 java8="/Library/Java/JavaVirtualMachines/jdk1.8.0.jdk/Contents/Home/bin/java"
 #opts="-server -Xmx8000M -Xms7800M -Xmn4000M -verbose:gc -XX:+UseG1GC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:MaxGCPauseMillis=10"
-opts="-server -Xmx6000M -Xms5800M -Xmn2000M -XX:+UnlockCommercialFeatures -XX:+FlightRecorder -XX:StartFlightRecording=duration=600s,filename=flightTroveCMulti1.jfr -XX:NewRatio=1 -XX:+UseLargePages"
 opts="-server -Xmx9000M -Xms2800M -Xmn1500M -XX:+UnlockCommercialFeatures -XX:+FlightRecorder -XX:StartFlightRecording=duration=600s,filename=flightTroveCMulti1.jfr -XX:NewRatio=1 -XX:MaxDirectMemorySize=120G"
+#opts="-server -Xmx9000M -Xms2800M -Xmn1500M -XX:MaxDirectMemorySize=120G"
 #opts="-server -Xmx6000M -Xms5800M -Xmn2000M -XX:+UnlockCommercialFeatures -XX:+FlightRecorder -XX:StartFlightRecording=duration=600s,filename=flightTroveC.jfr"
 #,settings=default"
 

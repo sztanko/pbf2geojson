@@ -5,6 +5,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import lombok.extern.java.Log;
+
 import org.openstreetmap.pbf.BinaryParser;
 import org.openstreetmap.pbf2geojson.convertors.ConvertorUtils;
 import org.openstreetmap.pbf2geojson.convertors.GeoJSONConvertor;
@@ -22,7 +24,7 @@ import crosby.binary.Osmformat.Node;
 import crosby.binary.Osmformat.Relation;
 import crosby.binary.Osmformat.Way;
 
-
+@Log
 public class StreamParser extends BinaryParser {
 	PrintWriter out;
 	Storage storage;
@@ -62,6 +64,7 @@ public class StreamParser extends BinaryParser {
 
 	@Override
 	protected void parseDense(final DenseNodes denseNodes) {
+		//log.info("Parsing "+denseNodes.getLatCount()+" dense nodes");
 		long lastId = 0, lastLat = 0, lastLon = 0;
 		int pos = 0;
 
@@ -101,6 +104,8 @@ public class StreamParser extends BinaryParser {
 
 	@Override
 	protected void parseNodes(List<Node> nodes) {
+		//log.info("Parsing "+nodes.size()+" nodes");
+		
 		nodes.stream().map(this::fromNode).map(storage::setNode)
 				.filter(n -> classifier.isInteresting(n.getProperties()))
 				.map(convertor::convertNode)// .sequential()

@@ -46,9 +46,10 @@ public class QueingStreamParser extends StreamParser {
 	        lon_offset = block.getLonOffset();
 	        date_granularity = block.getDateGranularity();
 	    	try {
-				
+				//log.info("Attempting to parse a block");
 	        for (final Osmformat.PrimitiveGroup groupmessage : block
 	                .getPrimitivegroupList()) {
+	        	//log.info("Received a new block");
 	            // Exactly one of these should trigger on each loop.
 	        	if (groupmessage.hasDense())
 	        	{
@@ -65,7 +66,6 @@ public class QueingStreamParser extends StreamParser {
 	            
 	        }
 	    	} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
     	

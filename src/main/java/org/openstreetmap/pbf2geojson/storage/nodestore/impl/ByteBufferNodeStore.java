@@ -101,6 +101,8 @@ public class ByteBufferNodeStore implements NodeStore{
 	@Override
 	public void finalizeNodes() {
 		sortRefBuffer();
+		//log.info("Number of nodes is: "+pos.get());
+		//log.info("Allocating a range array of size "+Integer.max(pos.get()>>10,2));
 		this.ranges = new RangeArray(this.refBuf, pos.get(), Integer.max(pos.get()>>10,2));
 	}
 
