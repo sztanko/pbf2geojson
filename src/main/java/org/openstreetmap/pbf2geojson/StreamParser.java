@@ -137,11 +137,11 @@ public class StreamParser extends BinaryParser {
 			this.storage.finalizeNodes();
 		}
 		
-		int maxWays = ways.stream().mapToInt(s-> s.getRefsCount()).max().getAsInt();
-		final SimpleWay target = new SimpleWay(maxWays+1, new long[maxWays+1], 0, new HashMap<String, Object>());
-		final char[] charTarget = new char[maxWays*30];
+		int maxPointsInAWay = ways.stream().mapToInt(s-> s.getRefsCount()).max().getAsInt();
+		final SimpleWay target = new SimpleWay(maxPointsInAWay+1, new long[maxPointsInAWay+1], 0, new HashMap<String, Object>());
+		final char[] charTarget = new char[maxPointsInAWay*30 + 4096];
 		
-		StringBuilder builder = new StringBuilder(maxWays*30);
+		StringBuilder builder = new StringBuilder(maxPointsInAWay*30 + 4096);
 		//char[] charTarget = charTargets.get();
 		ways.stream()
 		.map(w -> this.copyFromWay(w, target))
@@ -150,7 +150,12 @@ public class StreamParser extends BinaryParser {
 				.filter(classifier::isInteresting)
 				.map(convertor::parseWay)
 				.map(g -> ConvertorUtils.wayToString(g, builder))
-				.map(buf ->{builder.append('\n'); buf.getChars(0, builder.length(), charTarget, 0); return charTarget;})
+				.map(buf ->{builder.append('\n'); 
+				if(builder.length()<=charTarget.length)
+					buf.getChars(0, builder.length(), charTarget, 0); 
+				else
+					log.warning("builder length exceeds charTarget"+buf);
+				return charTarget;})
 				.forEach(chars -> this.writeNoException(chars, builder.length()));
 
 	}
@@ -235,6 +240,7 @@ public class StreamParser extends BinaryParser {
 			members[i] = m;
 		}
 		SimpleRelation rel = new SimpleRelation();
+		rel.setRef(relation.getId());
 		rel.setMembers(members);
 		rel.setProperties(props);
 		rel.setType((String) props.get("type"));

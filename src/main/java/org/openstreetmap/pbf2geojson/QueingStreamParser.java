@@ -8,6 +8,7 @@ import lombok.extern.java.Log;
 
 import org.openstreetmap.pbf2geojson.convertors.GeoJSONConvertor;
 import org.openstreetmap.pbf2geojson.storage.Storage;
+import org.openstreetmap.pbf2geojson.storage.StorageUtil;
 
 import crosby.binary.Osmformat;
 
@@ -54,16 +55,41 @@ public class QueingStreamParser extends StreamParser {
 	        	if (groupmessage.hasDense())
 	        	{
 	        		//log.info("Offering a densenode");
-	        			this.nodesQ.offer(() -> parseDense(groupmessage.getDense()), 5000, TimeUnit.MILLISECONDS);
+	        		this.nodesQ.put(() -> parseDense(groupmessage.getDense()));
+					
+	        		//	this.nodesQ.offer(() -> parseDense(groupmessage.getDense()), 5000, TimeUnit.MILLISECONDS);
 					//this.denseNodesQ.offer(()->groupmessage.getDense());
 	        	}
 	        	if(groupmessage.getNodesList().size()>0)
-	        		this.nodesQ.offer(() -> parseNodes(groupmessage.getNodesList()), 5000, TimeUnit.MILLISECONDS);
-	            if(groupmessage.getWaysList().size()>0)
-	            	this.waysQ.offer(() -> parseWays(groupmessage.getWaysList()), 5000, TimeUnit.MILLISECONDS);
-	            if(groupmessage.getRelationsList().size()>0)
-	            	this.relationsQ.offer(()-> parseRelations(groupmessage.getRelationsList()), 5000, TimeUnit.MILLISECONDS);
-	            
+	        	{
+	        		//log.info("Offering a node");
+	        		
+	        		this.nodesQ.put(() -> parseNodes(groupmessage.getNodesList()));
+	        		//this.nodesQ.offer(() -> parseNodes(groupmessage.getNodesList()), 5000, TimeUnit.MILLISECONDS);
+	        	}
+	        		if(groupmessage.getWaysList().size()>0)
+	            	{
+	        			//log.info("Offering a waynode");
+	        			//	log.info("putting a poison to the node queue");
+	    	        		
+	        				this.nodesQ.put(StorageUtil.POISON);
+	        				//log.info("Size of node q is: "+this.nodesQ.size());
+	        			
+
+		        		
+	        			this.waysQ.put(() -> parseWays(groupmessage.getWaysList()));
+	        			//this.waysQ.offer(() -> parseWays(groupmessage.getWaysList()), 5000, TimeUnit.MILLISECONDS);
+	            	}
+	            if(groupmessage.getRelationsList().size()>0){
+	            	
+        				this.nodesQ.put(StorageUtil.POISON);
+        			
+        				this.waysQ.put(StorageUtil.POISON);
+        			
+	            	
+	            	//this.relationsQ.offer(()-> parseRelations(groupmessage.getRelationsList()), 5000, TimeUnit.MILLISECONDS);
+	            	this.relationsQ.put(()-> parseRelations(groupmessage.getRelationsList()));
+	            }
 	        }
 	    	} catch (InterruptedException e) {
 				e.printStackTrace();

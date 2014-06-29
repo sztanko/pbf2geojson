@@ -15,6 +15,11 @@ public class ByteBufferStore implements ByteStore {
 	int pos, offset;
 	protected int[][] ranges;
 	int minRef, maxRef;
+	/**
+	 * 
+	 * @param capacity - number of ways
+	 * @param numRefs number of points
+	 */
 	
 	public ByteBufferStore(int capacity, int numRefs) {
 		this.capacity = capacity;
@@ -55,17 +60,22 @@ public class ByteBufferStore implements ByteStore {
 		final int i, offs;
 
 		int len = ByteBuffer.wrap(b).getInt() * 8 + 4;
+		if(offset+len> buf.capacity())
+		{
+			log.warning("It feels like we won't be able to allocate "+len+" bytes at offset "+offset+", so skiping this");
+			return;
+		}
 		int[] pos_offset = incrementPositionAndOffset(len);
 		i = pos_offset[0];
 		offs = pos_offset[1];
 		
-		/*
+		
 		if (i > capacity) {
 			log.info("Offset over capacity! " + i);
 		}
-		if (offs > buf.capacity()) {
-			log.info("Capacity is clearly smaller then" + offs);
-		}*/
+		if (offs+len > buf.capacity()) {
+			log.info("Capacity "+ buf.capacity()+" is clearly smaller then " + (offs+len));
+		}
 		this.refBuf.putInt(i * 8, (int) ref);
 		this.refBuf.putInt(i * 8 + 4, offs);
 		for (int j = 0; j < len; j++)

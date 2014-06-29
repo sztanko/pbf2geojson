@@ -23,6 +23,7 @@ import org.openstreetmap.pbf.file.FileBlock.RawBlockPair;
 import org.openstreetmap.pbf2geojson.CountingStreamParser.Stats;
 import org.openstreetmap.pbf2geojson.convertors.GeoJSONConvertor;
 import org.openstreetmap.pbf2geojson.storage.Storage;
+import org.openstreetmap.pbf2geojson.storage.StorageUtil;
 import org.openstreetmap.pbf2geojson.storage.bytestore.ByteStore;
 import org.openstreetmap.pbf2geojson.storage.bytestore.impl.RemainderByteBufferStore;
 import org.openstreetmap.pbf2geojson.storage.impl.NodeByteStorage;
@@ -45,12 +46,12 @@ public class ConvertMultiThread {
 			while (true) {
 				RawBlockPair p = FileBlock.processRaw(datinput);
 				FileBlock bl = p.getHead().parseData(p.getContents());
-				log.info("Block type is "+bl.getType());
+				//log.info("Block type is " + bl.getType());
 				if (bl.getType().equals("OSMData")) {
-					//log.info("low level Parsing block");
+					// log.info("low level Parsing block");
 					PrimitiveBlock block = Osmformat.PrimitiveBlock
 							.parseFrom(bl.getData());
-					//log.info("Finished low level parsing of block");
+					// log.info("Finished low level parsing of block");
 					BinaryParser parser = parserFactory.call();
 					parser.parse(block);
 				}
@@ -72,19 +73,22 @@ public class ConvertMultiThread {
 		final BlockingQueue<Runnable> waysQ;
 		final BlockingQueue<Runnable> relationsQ;
 		final Storage storage;
+		final int concurrency;
 
 		public OSMExecutorThread(final BlockingQueue<Runnable> nodesQ,
 				final BlockingQueue<Runnable> waysQ,
-				final BlockingQueue<Runnable> relationsQ, Storage storage) {
+				final BlockingQueue<Runnable> relationsQ, Storage storage,
+				int concurrency) {
 			super();
 			this.nodesQ = nodesQ;
 			this.waysQ = waysQ;
 			this.relationsQ = relationsQ;
 			this.storage = storage;
+			this.concurrency = concurrency;
 		}
 
-		public void exec(BlockingQueue<Runnable> q, String threadName,
-				int concurrency) throws InterruptedException {
+		public void exec(BlockingQueue<Runnable> q, String threadName)
+				throws InterruptedException {
 			// final int numP=Runtime.getRuntime().availableProcessors()-2;
 
 			final CountDownLatch latch = new CountDownLatch(concurrency);
@@ -98,10 +102,14 @@ public class ConvertMultiThread {
 					// q.size());
 					Runnable r;
 					try {
-						while ((r = q.poll(2000, TimeUnit.MILLISECONDS)) != null) {
-							// log.info("Running parser");
+						while ((r = q.take()) != StorageUtil.POISON) {
+							//log.info("Running a parser");
 							r.run();
+							//log.info("Finished running a parser, going for the next one");
+							//log.info("Q size is: " + q.size());
+
 						}
+						//log.info("I've got a posion!");
 						// log.info("Finished " + threadName);
 					} catch (InterruptedException e) {
 						log.info("INTERRUPT!");
@@ -127,15 +135,14 @@ public class ConvertMultiThread {
 		public void run() {
 			try {
 				Thread.sleep(10);
-				int concurrency = Runtime.getRuntime().availableProcessors();
-				exec(nodesQ, "nodes", concurrency);
+				exec(nodesQ, "nodes");
 				log.info("Done with nodes");
 				storage.finalizeNodes();
 				log.info("Finalized nodes");
-				exec(waysQ, "ways", concurrency);
+				exec(waysQ, "ways");
 				storage.finalizeWays();
 				log.info("Finalized ways");
-				exec(relationsQ, "relations", concurrency);
+				exec(relationsQ, "relations");
 				log.info("Done with everything");
 			} catch (InterruptedException e) {
 				e.printStackTrace();
@@ -162,7 +169,7 @@ public class ConvertMultiThread {
 
 	}
 
-	public static void main(String[] args) throws IOException,
+	public static void main(String... args) throws IOException,
 			InterruptedException {
 		String file = args[0];
 		String out = args[1];
@@ -187,30 +194,35 @@ public class ConvertMultiThread {
 				new SimpleWayClassifier(), storage);
 		final PrintWriter p = new PrintWriter(new BufferedWriter(
 				new PrintWriter(out), 50 * 1024));
-		final BlockingQueue<Runnable> nodesQ = new LinkedBlockingQueue<Runnable>(
-				10);
-		final BlockingQueue<Runnable> waysQ = new LinkedBlockingQueue<Runnable>(
-				10);
-		final BlockingQueue<Runnable> relationsQ = new LinkedBlockingQueue<Runnable>(
-				10);
+		final BlockingQueue<Runnable> nodesQ = new LinkedBlockingQueue<Runnable>();
+		final BlockingQueue<Runnable> waysQ = new LinkedBlockingQueue<Runnable>();
+		final BlockingQueue<Runnable> relationsQ = new LinkedBlockingQueue<Runnable>();
 
 		final Callable<BinaryParser> parserFactory = () -> {
 			return new QueingStreamParser(p, storage, convertor, classifier,
 					nodesQ, waysQ, relationsQ);
 		};
+		int concurrency = Runtime.getRuntime().availableProcessors();
+
 		final OSMExecutorThread exec = new OSMExecutorThread(nodesQ, waysQ,
-				relationsQ, storage);
+				relationsQ, storage, concurrency);
 		Thread eThread = new Thread(exec, "executor");
 		eThread.start();
-		log.info("Started reading file");
+		//log.info("Started reading file");
 		readFile(file, parserFactory);
-		log.info("Finished reading file");
+		for (int i = 0; i < concurrency; i++)
+		{
+			nodesQ.put(StorageUtil.POISON);
+			waysQ.put(StorageUtil.POISON);
+			relationsQ.put(StorageUtil.POISON);
+		}
+			//log.info("Finished reading file");
 		eThread.join();
-		log.info("Closing input");
+		//log.info("Closing input");
 		p.close();
-		log.info("Closing storage");
+		//log.info("Closing storage");
 		storage.close();
-		log.info("Done");
+		//log.info("Done");
 	}
 
 }

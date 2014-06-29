@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 
 import lombok.extern.java.Log;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.geojson.GeoJsonObject;
 import org.geojson.GeometryCollection;
 import org.geojson.LineString;
@@ -70,7 +71,7 @@ public class GeoJSONConvertor implements Convertor {
 
 	@Override
 	public String convertWay(SimpleWay way) throws ConvertorException {
-		//return "";
+		// return "";
 		GeoJsonObject f = parseWay(way);
 		return convertToString(f);
 
@@ -79,13 +80,11 @@ public class GeoJSONConvertor implements Convertor {
 	public GeoJsonObject parseWay(SimpleWay way) {
 		GeoJsonObject f = null;
 
-		SimpleNode[] coordinates = 
-				//IntStream.range(0,way.getRefListLength())
-				//.mapToObj(i -> storage.get)
-				ConvertorUtils.retrieveNodes(way, storage)
-				.toArray(SimpleNode[]::new);
-		List<LngLatAlt> lngLats = 
-				Arrays.stream(coordinates)
+		SimpleNode[] coordinates =
+		// IntStream.range(0,way.getRefListLength())
+		// .mapToObj(i -> storage.get)
+		ConvertorUtils.retrieveNodes(way, storage).toArray(SimpleNode[]::new);
+		List<LngLatAlt> lngLats = Arrays.stream(coordinates)
 				.map(s -> new LngLatAlt(s.getLon(), s.getLat()))
 				.collect(Collectors.toList());
 		if (classifier.isLineString(coordinates, way.getProperties())) {
@@ -129,6 +128,7 @@ public class GeoJSONConvertor implements Convertor {
 			f = this.parseAsWay(rel);
 		} else
 			f = this.parseAsGenericRelation(rel);
+		f.setProperty("id", rel.getRef());
 		return f;
 	}
 
@@ -137,8 +137,9 @@ public class GeoJSONConvertor implements Convertor {
 		final GeometryCollection collection = new GeometryCollection();
 		for (Member m : rel.getMembers()) {
 			if (m.getType() == MemberType.NODE) {
-				if(m.getRef()<0)
-					log.info("Relation #"+rel.getRef()+" has negative ref "+m.getRef());
+				if (m.getRef() < 0)
+					log.info("Relation #" + rel.getRef() + " has negative ref "
+							+ m.getRef());
 				SimpleNode n = storage.getNode(m.getRef());
 				if (n != null)
 					collection.add(this.parseNode(n));
@@ -160,8 +161,8 @@ public class GeoJSONConvertor implements Convertor {
 	protected GeoJsonObject parseAsPolygonOld(SimpleRelation rel) {
 		MultiPolygon f = new MultiPolygon();
 		f.setProperties(rel.getProperties());
-		//List<List<LngLatAlt>> interiors = new ArrayList<List<LngLatAlt>>();
-		Polygon p =null;
+		// List<List<LngLatAlt>> interiors = new ArrayList<List<LngLatAlt>>();
+		Polygon p = null;
 		for (Member m : rel.getMembers()) {
 			List<LngLatAlt> coords = null;
 			if (m.getType() == MemberType.WAY) {
@@ -171,34 +172,35 @@ public class GeoJSONConvertor implements Convertor {
 							.map(s -> new LngLatAlt(s.getLon(), s.getLat()))
 							.collect(Collectors.toList());
 					if (coords.size() > 0) {
-						if (m.getRole().equals("outer") || m.getRole().equals(""))
-						{
-							if(p!=null)
+						if (m.getRole().equals("outer")
+								|| m.getRole().equals("")) {
+							if (p != null)
 								f.add(p);
 							p = new Polygon();
 							p.setExteriorRing(coords);
-							//interiors.add(coords);
+							// interiors.add(coords);
 						}// ;
-						else if (p!=null && m.getRole().equals("inner"))
+						else if (p != null && m.getRole().equals("inner"))
 							p.addInteriorRing(coords);
 					}
 				}
 			}
 
 		}
-	
+
 		return f;
 	}
 
 	protected GeoJsonObject parseAsWay(SimpleRelation rel) {
 		MultiLineString f = new MultiLineString();
 		f.setProperties(rel.getProperties());
-		SimpleWay w = new SimpleWay(0, new long[10000], 0, new HashMap<String,Object>());
+		SimpleWay w = new SimpleWay(0, new long[10000], 0,
+				new HashMap<String, Object>());
 		for (Member m : rel.getMembers()) {
 			List<LngLatAlt> coords = null;
 			if (m.getType() == MemberType.WAY) {
-				SimpleWay tempw = this.storage.getWay(m.getRef(),w);
-				
+				SimpleWay tempw = this.storage.getWay(m.getRef(), w);
+
 				if (tempw != null) {
 					coords = ConvertorUtils.retrieveNodes(w, this.storage)
 							.map(s -> new LngLatAlt(s.getLon(), s.getLat()))
@@ -213,7 +215,8 @@ public class GeoJSONConvertor implements Convertor {
 	}
 
 	protected GeoJsonObject parseAsPolygon(SimpleRelation rel) {
-		//List<List<LngLatAlt>> interiors = new ArrayList<List<LngLatAlt>>();
+
+		// List<List<LngLatAlt>> interiors = new ArrayList<List<LngLatAlt>>();
 		MultiPolygonGenerator g = new MultiPolygonGenerator(storage);
 		for (Member m : rel.getMembers()) {
 			g.process(m);
@@ -222,126 +225,141 @@ public class GeoJSONConvertor implements Convertor {
 		f.setProperties(rel.getProperties());
 		return f;
 	}
-	
-	protected static class MultiPolygonGenerator
-	{
-		public static enum State {OUTER, INNER};
-		
+
+	protected static class MultiPolygonGenerator {
+		public static enum State {
+			OUTER, INNER
+		};
+
 		State state;
 		MultiPolygon f;
-		
+
 		Polygon p;
 		Storage storage;
-		
+
 		TLongList refs;
-		
+
 		boolean isPolygonNew = true;
 		boolean hasExteriror = false;
-		
-		public MultiPolygonGenerator(Storage storage)
-		{
+
+		public MultiPolygonGenerator(Storage storage) {
 			state = State.OUTER;
 			f = new MultiPolygon();
 			this.storage = storage;
 			p = new Polygon();
 			refs = new TLongArrayList();
 		}
-		
-		public void process(Member m)
-		{
-			if (m.getType() != MemberType.WAY) return;
+
+		protected long[] reverse(SimpleWay w) {
+			long[] refs = w.getRefList();
+			ArrayUtils.reverse(refs, 0, w.getRefListLength());
+			return refs;
+		}
+
+		public void process(Member m) {
+			if (m.getType() != MemberType.WAY)
+				return;
 			SimpleWay w = this.storage.getWay(m.getRef());
-			if(w==null) return;
+			if (w == null)
+				return;
 			String role = m.getRole();
-			switch(state){
-				case OUTER:
-					if("outer".equals(role) || "".equals(role))
-					{
-						refs.add(w.getRefList(), 0, w.getRefListLength());
-						if(refs.size()>2 && refs.get(0)==refs.get(refs.size()-1))
-						{
-							completeExterior();		
-							// We have closed a circle, happy to go to the inner state
-						}
-					}
-					if("inner".equals(role))
-					{
-						//so we now have inner ways starting, we should complete the exterior ring as it is
-						completeExterior();
-						refs.add(w.getRefList(), 0, w.getRefListLength());
-						if(refs.size()>2 && refs.get(0)==refs.get(refs.size()-1))
-						{
-							addInterior();
-						}
-					}
+			switch (state) {
+			case OUTER:
+				if ("outer".equals(role) || "".equals(role)) {
 					
-					break;
-				case INNER:
-					if("outer".equals(role) || "".equals(role))
-					{
-						completePolygon();
-						refs.add(w.getRefList(), 0, w.getRefListLength());
-						if(refs.size()>2 && refs.get(0)==refs.get(refs.size()-1))
-						{
-							completeExterior();		
-							// We have closed a circle, happy to go to the inner state
+					if (refs.size() > 0 && w.getRefListLength() > 0) {
+						if (refs.get(refs.size() - 1) == w.getRefList()[w
+								.getRefListLength() - 1]) {
+							reverse(w);
 						}
+						long[] refsToAdd = ArrayUtils.subarray(w.getRefList(), 1, w.getRefListLength());
+						refs.add(refsToAdd);
+						
 					}
-					if("inner".equals(role))
+					else
 					{
 						refs.add(w.getRefList(), 0, w.getRefListLength());
-						if(refs.size()>2 && refs.get(0)==refs.get(refs.size()-1))
-						{
-							addInterior();
-						}
+						
 					}
+					if (refs.size() > 2
+							&& refs.get(0) == refs.get(refs.size() - 1)) {
+						completeExterior();
+						// We have closed a circle, happy to go to the inner
+						// state
+					}
+				}
+				if ("inner".equals(role)) {
+					// so we now have inner ways starting, we should complete
+					// the exterior ring as it is
+					completeExterior();
+					refs.add(w.getRefList(), 0, w.getRefListLength());
+					if (refs.size() > 2
+							&& refs.get(0) == refs.get(refs.size() - 1)) {
+						addInterior();
+					}
+				}
+
+				break;
+			case INNER:
+				if ("outer".equals(role) || "".equals(role)) {
+					completePolygon();
+					refs.add(w.getRefList(), 0, w.getRefListLength());
+					if (refs.size() > 2
+							&& refs.get(0) == refs.get(refs.size() - 1)) {
+						completeExterior();
+						// We have closed a circle, happy to go to the inner
+						// state
+					}
+				}
+				if ("inner".equals(role)) {
+					refs.add(w.getRefList(), 0, w.getRefListLength());
+					if (refs.size() > 2
+							&& refs.get(0) == refs.get(refs.size() - 1)) {
+						addInterior();
+					}
+				}
 			}
 		}
-		
-		public MultiPolygon complete()
-		{
-			if(!isPolygonNew)
+
+		public MultiPolygon complete() {
+			if (!isPolygonNew)
 				f.add(p);
 			return f;
 		}
-		
-		public void completePolygon()
-		{
+
+		public void completePolygon() {
 			f.add(p);
 			p = new Polygon();
-			isPolygonNew=true;
+			isPolygonNew = true;
 		}
 
-		
-		public void completeExterior()
-		{
+		public void completeExterior() {
 			List<LngLatAlt> coords = completeRef();
 			p.setExteriorRing(coords);
-			state=State.INNER;
-			isPolygonNew=false;
-			
-		}		
-		public void addInterior()
-		{
-			
-			List<LngLatAlt> coords = completeRef();
-			if(isPolygonNew) return ;
-			p.addInteriorRing(coords);
-			state=State.INNER;
-			
+			state = State.INNER;
+			isPolygonNew = false;
+
 		}
 
-		public List<LngLatAlt> completeRef(){
-			List<LngLatAlt> coords = 
-					Arrays.stream(refs.toArray())
-					.mapToObj(this.storage::getNode)
-					.filter(n -> n!=null)
+		public void addInterior() {
+
+			List<LngLatAlt> coords = completeRef();
+			if (isPolygonNew)
+				return;
+			p.addInteriorRing(coords);
+			state = State.INNER;
+
+		}
+
+		public List<LngLatAlt> completeRef() {
+			List<LngLatAlt> coords = Arrays.stream(refs.toArray())
+					.mapToObj(this.storage::getNode).filter(n -> n != null)
 					.map(s -> new LngLatAlt(s.getLon(), s.getLat()))
 					.collect(Collectors.toList());
 
 			refs = new TLongArrayList();
 			return coords;
 		}
-		//public void handleWay()
+		// public void handleWay()
 	}
 }

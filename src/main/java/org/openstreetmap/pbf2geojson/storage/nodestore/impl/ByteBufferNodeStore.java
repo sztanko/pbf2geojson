@@ -20,7 +20,7 @@ public class ByteBufferNodeStore implements NodeStore{
 	protected long minRef;
 	protected long maxRef;
 	
-	protected RangeArray ranges;
+	//protected RangeArray ranges;
 	final AtomicInteger pos;
 	
 	public ByteBufferNodeStore(int capacity)
@@ -48,10 +48,11 @@ public class ByteBufferNodeStore implements NodeStore{
 	@Override
 	public SimpleNode getNode(long ref, SimpleNode target) {
 		//4*8/9
-		int[] range = ranges.getRangeFor(ref);
-		//int pos = this.searchNodeIndex((int)ref);
+		//int[] range = ranges.getRangeFor(ref);
+		//int pos = this.searchNodeIndex((int)ref, range[0], range[1]);
 		
-		int pos = this.searchNodeIndex((int)ref, range[0], range[1]);
+		int pos = this.searchNodeIndex((int)ref);
+		
 		//log.info("Pos is "+pos);
 		if(pos==-1){
 //			log.info("Range index for "+ref+" is "+rangeIndex+" - "+Arrays.toString(range) 
@@ -103,7 +104,7 @@ public class ByteBufferNodeStore implements NodeStore{
 		sortRefBuffer();
 		//log.info("Number of nodes is: "+pos.get());
 		//log.info("Allocating a range array of size "+Integer.max(pos.get()>>10,2));
-		this.ranges = new RangeArray(this.refBuf, pos.get(), Integer.max(pos.get()>>10,2));
+		//this.ranges = new RangeArray(this.refBuf, pos.get(), Integer.max(pos.get()>>10,2));
 	}
 
 	@Override
@@ -111,7 +112,7 @@ public class ByteBufferNodeStore implements NodeStore{
 		this.refBuf.clear();
 		this.latBuf.clear();
 		this.lonBuf.clear();
-		this.ranges = null;
+		//this.ranges = null;
 	}
 	
 }

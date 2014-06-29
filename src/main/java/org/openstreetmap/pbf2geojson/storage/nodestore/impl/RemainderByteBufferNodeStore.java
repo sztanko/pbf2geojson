@@ -20,7 +20,7 @@ public class RemainderByteBufferNodeStore implements NodeStore{
 		this.numBuckets = numBuckets;
 		this.stores = new ByteBufferNodeStore[numBuckets];
 		for(int i=0;i<numBuckets;i++)
-		this.stores[i] = new ByteBufferNodeStore((int)(capacity/numBuckets + 300));
+		this.stores[i] = new ByteBufferNodeStore((int)(capacity/numBuckets + 4000));
 	}
 
 	@Override

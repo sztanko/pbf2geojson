@@ -106,4 +106,6 @@ public class StorageUtil {
 		
 	}
 	
+	public static Runnable POISON = () -> System.out.println("I am a poison");
+	
 }

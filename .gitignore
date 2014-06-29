@@ -1,3 +1,4 @@
+*.jfr
 .project
 .settings
 .classpath
