@@ -120,6 +120,7 @@ public class StreamParser extends BinaryParser {
 		rel.stream().map(this::fromRelation).map(storage::setRelation)
 		// .filter(classifier::isInteresting)
 				.map(convertor::convertRelation)
+				.filter(c -> c!=null)
 				// .sequential()
 				.forEach(this::writeNoException);
 

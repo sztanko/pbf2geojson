@@ -3,7 +3,9 @@ package org.openstreetmap.pbf2geojson.convertors;
 import gnu.trove.list.TLongList;
 import gnu.trove.list.array.TLongArrayList;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -30,6 +32,9 @@ import org.openstreetmap.pbf2geojson.storage.Storage;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.GeometryFactory;
+import com.vividsolutions.jts.operation.polygonize.Polygonizer;
 
 import crosby.binary.Osmformat.Relation.MemberType;
 
@@ -111,6 +116,8 @@ public class GeoJSONConvertor implements Convertor {
 
 	protected String convertToString(GeoJsonObject f) {
 		try {
+			if (f == null)
+				return null;
 			String json = objectMapper.writeValueAsString(f);
 			// String json = new ObjectMapper().writeValueAsString(f);
 			return json;
@@ -121,19 +128,29 @@ public class GeoJSONConvertor implements Convertor {
 	}
 
 	public GeoJsonObject parseRelation(SimpleRelation rel) {
+		return parseRelation(rel, 0);
+	}
+
+	public GeoJsonObject parseRelation(SimpleRelation rel, int level) {
 		final GeoJsonObject f;
 		if (this.polygonRelationsSet.contains(rel.getType())) {
 			f = this.parseAsPolygon(rel);
 		} else if (this.lineStringRelationsSet.contains(rel.getType())) {
 			f = this.parseAsWay(rel);
 		} else
-			f = this.parseAsGenericRelation(rel);
-		f.setProperty("id", rel.getRef());
+			f = this.parseAsGenericRelation(rel, level);
+		if (f != null)
+			f.setProperty("id", rel.getRef());
 		return f;
 	}
 
-	public GeometryCollection parseAsGenericRelation(SimpleRelation rel) {
-
+	public GeometryCollection parseAsGenericRelation(SimpleRelation rel,
+			int level) {
+		level++;
+		if (level > 200) {
+			log.info("Recursive reference " + rel.getRef());
+			return null;
+		}
 		final GeometryCollection collection = new GeometryCollection();
 		for (Member m : rel.getMembers()) {
 			if (m.getType() == MemberType.NODE) {
@@ -152,7 +169,7 @@ public class GeoJSONConvertor implements Convertor {
 			if (m.getType() == MemberType.RELATION) {
 				SimpleRelation relation = storage.getRelation(m.getRef());
 				if (relation != null)
-					collection.add(this.parseRelation(relation));
+					collection.add(this.parseRelation(relation, level));
 			}
 		}
 		return collection;
@@ -237,12 +254,185 @@ public class GeoJSONConvertor implements Convertor {
 		Polygon p;
 		Storage storage;
 
+		// TLongList refs;
+		List<long[]> refs;
+
+		//boolean isPolygonNew = true;
+		boolean hasExteriror = false;
+
+		public MultiPolygonGenerator(Storage storage) {
+			state = State.OUTER;
+			f = new MultiPolygon();
+			this.storage = storage;
+			p = new Polygon();
+			refs = new ArrayList<long[]>();
+
+		}
+
+		public void process(Member m) {
+			if (m.getType() != MemberType.WAY)
+				return;
+			SimpleWay w = this.storage.getWay(m.getRef());
+			if (w == null)
+				return;
+			String role = m.getRole();
+			switch (state) {
+			case OUTER:
+				if ("outer".equals(role) || "".equals(role)) {
+					long[] refsToAdd = ArrayUtils.subarray(w.getRefList(), 0,
+							w.getRefListLength());
+					refs.add(refsToAdd);
+				}
+
+				if ("inner".equals(role)) {
+					// so we now have inner ways starting, we should complete
+					// the exterior ring as it is
+					completeExterior();
+					long[] refsToAdd = ArrayUtils.subarray(w.getRefList(), 0,
+							w.getRefListLength());
+					refs.add(refsToAdd);
+
+					// addInterior();
+
+				}
+
+				break;
+			case INNER:
+				if ("outer".equals(role) || "".equals(role)) {
+					completePolygon();
+					long[] refsToAdd = ArrayUtils.subarray(w.getRefList(), 0,
+							w.getRefListLength());
+					refs.add(refsToAdd);
+					// completeExterior();
+					// We have closed a circle, happy to go to the inner
+					// state
+				}
+
+				if ("inner".equals(role)) {
+					long[] refsToAdd = ArrayUtils.subarray(w.getRefList(), 0,
+							w.getRefListLength());
+					refs.add(refsToAdd);
+					// addInterior();
+				}
+			}
+		}
+
+		public MultiPolygon complete() {
+
+			if (refs.size() > 0) {
+				if (state == State.OUTER) {
+					completeExterior();
+				}
+
+				completePolygon();
+			}
+			return f;
+		}
+
+		public void completePolygon() {
+			if (hasExteriror && !p.getExteriorRing().isEmpty()) {
+				addInterior();
+				f.add(p);
+			}
+			p = new Polygon();
+			this.hasExteriror=false;
+		}
+
+		public void completeExterior() {
+			List<List<LngLatAlt>> coords = completeRef();
+			if (coords.size() == 0)
+				return;
+			int i = 0;
+			for (; i < coords.size() - 1; i++) {
+				if (!coords.get(i).isEmpty()) {
+					p.setExteriorRing(coords.get(i));
+					f.add(p);
+					p = new Polygon();
+					this.hasExteriror=false;
+				}
+			}
+			if(!coords.get(i).isEmpty())
+			{
+				p.setExteriorRing(coords.get(i));
+				this.hasExteriror=true;
+			}
+				state = State.INNER;
+			//isPolygonNew = false;
+
+		}
+
+		public void addInterior() {
+
+			List<List<LngLatAlt>> coords = completeRef();
+			if (!hasExteriror)
+				return;
+			coords.stream().filter(c -> !c.isEmpty())
+					.forEach(coord -> p.addInteriorRing(coord));
+			state = State.OUTER;
+
+		}
+
+		public List<List<LngLatAlt>> completeRef() {
+			GeometryFactory gf = new GeometryFactory();
+			Polygonizer p = new Polygonizer();
+			if (refs == null || refs.size() == 0) {
+				return new ArrayList<List<LngLatAlt>>();
+			}
+			refs.stream()
+					.map(refList -> (Coordinate[]) Arrays
+							.stream(refList)
+							.mapToObj(ref -> 
+									this.storage.getNode(ref))
+							.filter(n -> n != null)
+							.map(node -> new Coordinate(node.getLon(), node
+									.getLat()))
+							.toArray(size -> new Coordinate[size]))
+					.map(coordinates -> gf.createLineString(coordinates))
+					.forEach(ls -> p.add(ls));
+
+			try {
+				List<List<LngLatAlt>> coords = ((Collection<com.vividsolutions.jts.geom.Polygon>) p
+						.getPolygons())
+						.stream()
+						// .map(poly -> poly.isValid())
+						.map(poly -> Arrays.stream(poly.getCoordinates())
+								.map(c -> new LngLatAlt(c.x, c.y))
+								.collect(Collectors.toList()))
+						.collect(Collectors.toList());
+
+				return coords;
+			} catch (Exception e) {
+				log.warning("Problem during parsing refs of size "
+						+ refs.size());
+				refs.stream().forEach(r -> log.warning(Arrays.toString(r)));
+
+				return new ArrayList<List<LngLatAlt>>();
+			} finally {
+				refs = new ArrayList<long[]>();
+			}
+			// return null;
+		}
+		// public void handleWay()
+	}
+
+	@Deprecated
+	protected static class MultiPolygonGeneratorLegacy {
+		public static enum State {
+			OUTER, INNER
+		};
+
+		State state;
+		MultiPolygon f;
+
+		Polygon p;
+		Storage storage;
+
 		TLongList refs;
 
 		boolean isPolygonNew = true;
 		boolean hasExteriror = false;
 
-		public MultiPolygonGenerator(Storage storage) {
+		public MultiPolygonGeneratorLegacy(Storage storage) {
 			state = State.OUTER;
 			f = new MultiPolygon();
 			this.storage = storage;
@@ -266,20 +456,19 @@ public class GeoJSONConvertor implements Convertor {
 			switch (state) {
 			case OUTER:
 				if ("outer".equals(role) || "".equals(role)) {
-					
+
 					if (refs.size() > 0 && w.getRefListLength() > 0) {
 						if (refs.get(refs.size() - 1) == w.getRefList()[w
 								.getRefListLength() - 1]) {
 							reverse(w);
 						}
-						long[] refsToAdd = ArrayUtils.subarray(w.getRefList(), 1, w.getRefListLength());
+						long[] refsToAdd = ArrayUtils.subarray(w.getRefList(),
+								1, w.getRefListLength());
 						refs.add(refsToAdd);
-						
-					}
-					else
-					{
+
+					} else {
 						refs.add(w.getRefList(), 0, w.getRefListLength());
-						
+
 					}
 					if (refs.size() > 2
 							&& refs.get(0) == refs.get(refs.size() - 1)) {
